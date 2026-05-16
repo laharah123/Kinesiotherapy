@@ -1,0 +1,444 @@
+import type { GlyphKind, ToneColor } from '@/lib/tokens';
+
+export type BodyArea = 'back' | 'neck' | 'shoulder' | 'wrist' | 'knee' | 'hip' | 'foot' | 'core' | 'whole';
+
+export interface RoutineTemplate {
+  title: string;
+  durationDays: number;
+  effort: 'Light' | 'Moderate' | 'Vigorous';
+  dailyMinutes: number;
+  exercisesPerSession: number;
+}
+
+export interface Condition {
+  id: string;
+  name: string;
+  glyphKind: GlyphKind;
+  filterTag: BodyArea;
+  badgeText: string;
+  tone: ToneColor;
+  bodyRegions: string[];
+  exerciseIds: string[];
+  routineTemplate: RoutineTemplate;
+}
+
+export const CONDITIONS: Condition[] = [
+  {
+    id: 'low-back-pain',
+    name: 'Lower back pain',
+    glyphKind: 'spine',
+    filterTag: 'back',
+    badgeText: 'Most common',
+    tone: 'clay',
+    bodyRegions: ['lowBack', 'leftHip', 'rightHip'],
+    exerciseIds: [
+      'pelvic-tilt', 'cat-cow', 'childs-pose', 'standing-breath',
+      'knee-to-chest', 'glute-bridge', 'bird-dog', 'dead-bug',
+      'hip-flexor-stretch',
+    ],
+    routineTemplate: {
+      title: 'Lower back relief',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 15,
+      exercisesPerSession: 6,
+    },
+  },
+  {
+    id: 'sciatica',
+    name: 'Sciatica',
+    glyphKind: 'spine',
+    filterTag: 'back',
+    badgeText: '20 min plan',
+    tone: 'clay',
+    bodyRegions: ['lowBack', 'leftGlute', 'rightGlute', 'leftKnee', 'rightKnee'],
+    exerciseIds: [
+      'piriformis-stretch', 'sciatic-nerve-floss', 'hamstring-stretch-supine',
+      'glute-bridge', 'knee-to-chest', 'figure-4-stretch',
+      'cat-cow', 'childs-pose',
+    ],
+    routineTemplate: {
+      title: 'Sciatica recovery',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 20,
+      exercisesPerSession: 6,
+    },
+  },
+  {
+    id: 'lumbar-disc',
+    name: 'Lumbar disc herniation',
+    glyphKind: 'spine',
+    filterTag: 'back',
+    badgeText: 'Specialist',
+    tone: 'clay',
+    bodyRegions: ['lowBack', 'leftGlute', 'rightGlute'],
+    exerciseIds: [
+      'mckenzie-extension', 'cat-cow', 'childs-pose',
+      'knee-to-chest', 'bird-dog', 'dead-bug',
+      'pelvic-tilt',
+    ],
+    routineTemplate: {
+      title: 'Disc rehabilitation',
+      durationDays: 42,
+      effort: 'Light',
+      dailyMinutes: 18,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'tech-neck',
+    name: 'Tech neck',
+    glyphKind: 'neck',
+    filterTag: 'neck',
+    badgeText: 'Common',
+    tone: 'sage',
+    bodyRegions: ['neck', 'upperBack'],
+    exerciseIds: [
+      'chin-tuck', 'cervical-retraction', 'levator-scapulae-stretch',
+      'deep-neck-flexor', 'thoracic-extension-foam', 'neck-side-stretch',
+      'doorway-chest-stretch',
+    ],
+    routineTemplate: {
+      title: 'Neck & posture reset',
+      durationDays: 21,
+      effort: 'Light',
+      dailyMinutes: 12,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'frozen-shoulder',
+    name: 'Frozen shoulder',
+    glyphKind: 'arc',
+    filterTag: 'shoulder',
+    badgeText: '25 min plan',
+    tone: 'ochre',
+    bodyRegions: ['leftShoulder', 'rightShoulder'],
+    exerciseIds: [
+      'pendulum', 'codman', 'wand-external-rotation',
+      'posterior-capsule-stretch', 'band-external-rotation',
+      'doorway-chest-stretch',
+    ],
+    routineTemplate: {
+      title: 'Shoulder mobility',
+      durationDays: 42,
+      effort: 'Light',
+      dailyMinutes: 25,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'rotator-cuff',
+    name: 'Rotator cuff strain',
+    glyphKind: 'arc',
+    filterTag: 'shoulder',
+    badgeText: 'Common',
+    tone: 'ochre',
+    bodyRegions: ['leftShoulder', 'rightShoulder', 'upperBack'],
+    exerciseIds: [
+      'band-external-rotation', 'posterior-capsule-stretch',
+      'prone-y-t-w', 'doorway-chest-stretch',
+      'wall-angels', 'pendulum',
+    ],
+    routineTemplate: {
+      title: 'Rotator cuff rebuild',
+      durationDays: 28,
+      effort: 'Moderate',
+      dailyMinutes: 20,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'shoulder-impingement',
+    name: 'Shoulder impingement',
+    glyphKind: 'arc',
+    filterTag: 'shoulder',
+    badgeText: 'Common',
+    tone: 'ochre',
+    bodyRegions: ['leftShoulder', 'rightShoulder'],
+    exerciseIds: [
+      'posterior-capsule-stretch', 'band-external-rotation',
+      'prone-y-t-w', 'doorway-chest-stretch',
+      'wall-angels',
+    ],
+    routineTemplate: {
+      title: 'Shoulder decompression',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 18,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'tennis-elbow',
+    name: 'Tennis elbow',
+    glyphKind: 'wrist',
+    filterTag: 'wrist',
+    badgeText: 'Gradual',
+    tone: 'clay',
+    bodyRegions: ['leftElbow', 'rightElbow'],
+    exerciseIds: [
+      'wrist-flexor-stretch', 'eccentric-wrist-extension',
+      'median-nerve-glide', 'tendon-gliding',
+    ],
+    routineTemplate: {
+      title: 'Elbow tendon rehab',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 12,
+      exercisesPerSession: 4,
+    },
+  },
+  {
+    id: 'carpal-tunnel',
+    name: 'Carpal tunnel syndrome',
+    glyphKind: 'wrist',
+    filterTag: 'wrist',
+    badgeText: 'Common',
+    tone: 'neutral',
+    bodyRegions: ['leftWrist', 'rightWrist'],
+    exerciseIds: [
+      'median-nerve-glide', 'tendon-gliding',
+      'wrist-flexor-stretch', 'chin-tuck',
+    ],
+    routineTemplate: {
+      title: 'Wrist nerve relief',
+      durationDays: 21,
+      effort: 'Light',
+      dailyMinutes: 10,
+      exercisesPerSession: 4,
+    },
+  },
+  {
+    id: 'hip-oa',
+    name: 'Hip osteoarthritis',
+    glyphKind: 'arc',
+    filterTag: 'hip',
+    badgeText: '22 min plan',
+    tone: 'sage',
+    bodyRegions: ['leftHip', 'rightHip'],
+    exerciseIds: [
+      'hip-flexor-stretch', 'clamshell', 'hip-abduction-sidelying',
+      'seated-hip-rotation', 'figure-4-stretch', 'it-band-foam-roll',
+    ],
+    routineTemplate: {
+      title: 'Hip mobility & strength',
+      durationDays: 28,
+      effort: 'Moderate',
+      dailyMinutes: 22,
+      exercisesPerSession: 6,
+    },
+  },
+  {
+    id: 'knee-oa',
+    name: 'Knee osteoarthritis',
+    glyphKind: 'dots',
+    filterTag: 'knee',
+    badgeText: 'Common',
+    tone: 'sage',
+    bodyRegions: ['leftKnee', 'rightKnee'],
+    exerciseIds: [
+      'vmo-terminal-knee-ext', 'straight-leg-raise', 'mini-squat',
+      'single-leg-balance', 'clamshell', 'it-band-foam-roll',
+    ],
+    routineTemplate: {
+      title: 'Knee strength & stability',
+      durationDays: 28,
+      effort: 'Moderate',
+      dailyMinutes: 20,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'patellofemoral',
+    name: 'Runner\'s knee',
+    glyphKind: 'dots',
+    filterTag: 'knee',
+    badgeText: 'Active people',
+    tone: 'sage',
+    bodyRegions: ['leftKnee', 'rightKnee', 'leftHip', 'rightHip'],
+    exerciseIds: [
+      'vmo-terminal-knee-ext', 'clamshell', 'eccentric-step-down',
+      'it-band-foam-roll', 'hip-abduction-sidelying', 'straight-leg-raise',
+    ],
+    routineTemplate: {
+      title: 'Patella tracking reset',
+      durationDays: 21,
+      effort: 'Moderate',
+      dailyMinutes: 20,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'plantar-fasciitis',
+    name: 'Plantar fasciitis',
+    glyphKind: 'wave',
+    filterTag: 'foot',
+    badgeText: 'Morning pain',
+    tone: 'clay',
+    bodyRegions: ['leftKnee', 'rightKnee'],
+    exerciseIds: [
+      'plantar-fascia-stretch', 'calf-stretch-step',
+      'eccentric-calf-raise', 'single-leg-balance', 'alphabet-ankle',
+    ],
+    routineTemplate: {
+      title: 'Foot & fascia relief',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 15,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'achilles-tendinopathy',
+    name: 'Achilles tendinopathy',
+    glyphKind: 'wave',
+    filterTag: 'foot',
+    badgeText: 'Gradual load',
+    tone: 'clay',
+    bodyRegions: ['leftAnkle', 'rightAnkle'],
+    exerciseIds: [
+      'eccentric-calf-raise', 'calf-stretch-step',
+      'single-leg-balance', 'alphabet-ankle',
+    ],
+    routineTemplate: {
+      title: 'Achilles load programme',
+      durationDays: 42,
+      effort: 'Moderate',
+      dailyMinutes: 15,
+      exercisesPerSession: 4,
+    },
+  },
+  {
+    id: 'ankle-sprain',
+    name: 'Ankle sprain rehab',
+    glyphKind: 'wave',
+    filterTag: 'foot',
+    badgeText: 'Recovery',
+    tone: 'sage',
+    bodyRegions: ['leftAnkle', 'rightAnkle'],
+    exerciseIds: [
+      'alphabet-ankle', 'single-leg-balance',
+      'eccentric-calf-raise', 'calf-stretch-step',
+    ],
+    routineTemplate: {
+      title: 'Ankle stability rebuild',
+      durationDays: 21,
+      effort: 'Light',
+      dailyMinutes: 12,
+      exercisesPerSession: 4,
+    },
+  },
+  {
+    id: 'scoliosis',
+    name: 'Scoliosis',
+    glyphKind: 'spine',
+    filterTag: 'back',
+    badgeText: 'Structural',
+    tone: 'neutral',
+    bodyRegions: ['upperBack', 'midBack', 'lowBack'],
+    exerciseIds: [
+      'diaphragmatic-breathing', 'seated-thoracic-rotation',
+      'wall-angels', 'hip-abduction-sidelying',
+      'thoracic-extension-foam', 'cat-cow',
+    ],
+    routineTemplate: {
+      title: 'Spinal balance & breath',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 18,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'pelvic-floor',
+    name: 'Pelvic floor dysfunction',
+    glyphKind: 'circle',
+    filterTag: 'core',
+    badgeText: 'Private',
+    tone: 'sage',
+    bodyRegions: ['lowerAbdomen', 'leftHip', 'rightHip'],
+    exerciseIds: [
+      'kegel', 'diaphragmatic-breathing', 'heel-slides',
+      'hip-flexor-stretch', 'figure-4-stretch',
+    ],
+    routineTemplate: {
+      title: 'Pelvic floor restore',
+      durationDays: 28,
+      effort: 'Light',
+      dailyMinutes: 12,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'diastasis-recti',
+    name: 'Diastasis recti',
+    glyphKind: 'circle',
+    filterTag: 'core',
+    badgeText: 'Postpartum',
+    tone: 'sage',
+    bodyRegions: ['upperAbdomen', 'lowerAbdomen'],
+    exerciseIds: [
+      'diaphragmatic-breathing', 'heel-slides', 'dead-bug', 'kegel',
+      'cat-cow', 'pelvic-tilt',
+    ],
+    routineTemplate: {
+      title: 'Core reconnection',
+      durationDays: 42,
+      effort: 'Light',
+      dailyMinutes: 14,
+      exercisesPerSession: 5,
+    },
+  },
+  {
+    id: 'desk-posture',
+    name: 'Desk worker posture',
+    glyphKind: 'neck',
+    filterTag: 'neck',
+    badgeText: '15 min plan',
+    tone: 'neutral',
+    bodyRegions: ['neck', 'upperBack', 'midBack', 'lowBack'],
+    exerciseIds: [
+      'chin-tuck', 'thoracic-extension-foam', 'doorway-chest-stretch',
+      'seated-thoracic-rotation', 'hip-flexor-stretch', 'wall-angels',
+      'levator-scapulae-stretch',
+    ],
+    routineTemplate: {
+      title: 'Desk posture reset',
+      durationDays: 21,
+      effort: 'Light',
+      dailyMinutes: 15,
+      exercisesPerSession: 6,
+    },
+  },
+  {
+    id: 'thoracic-kyphosis',
+    name: 'Rounded shoulders',
+    glyphKind: 'arc',
+    filterTag: 'shoulder',
+    badgeText: 'Posture',
+    tone: 'neutral',
+    bodyRegions: ['upperBack', 'chest', 'leftShoulder', 'rightShoulder'],
+    exerciseIds: [
+      'prone-y-t-w', 'wall-angels', 'doorway-chest-stretch',
+      'thoracic-extension-foam', 'thoracic-rotation-foam',
+      'seated-thoracic-rotation',
+    ],
+    routineTemplate: {
+      title: 'Upper back opening',
+      durationDays: 21,
+      effort: 'Light',
+      dailyMinutes: 15,
+      exercisesPerSession: 5,
+    },
+  },
+];
+
+export const CONDITION_MAP: Record<string, Condition> = Object.fromEntries(
+  CONDITIONS.map((c) => [c.id, c]),
+);
+
+export const CONDITION_FILTER_TAGS: BodyArea[] = [
+  'back', 'neck', 'shoulder', 'wrist', 'knee', 'hip', 'foot', 'core',
+];
