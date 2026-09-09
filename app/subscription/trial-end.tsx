@@ -1,71 +1,124 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 
-import { useAuthStore } from '@/lib/store/auth';
-import { restorePurchases, hasActiveEntitlement } from '@/lib/revenuecat';
+import { useAccess } from '@/lib/access';
+import { useProgressStore } from '@/lib/store/progress';
+import {
+  restorePurchases, hasActiveEntitlement, applyCustomerInfoToStore, STORE_NAME,
+} from '@/lib/revenuecat';
 import { AppBar } from '@/components/ui/AppBar';
 import { IconBtn } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, PRICING, RADII, fontFor } from '@/lib/tokens';
+import type { IconName } from '@/lib/tokens';
 
-const FEATURES = [
-  { icon: 'plan',     label: 'Unlimited exercise plans' },
-  { icon: 'bolt',     label: 'Adaptive sessions that evolve with you' },
-  { icon: 'shield',   label: 'Therapist messaging' },
-  { icon: 'progress', label: 'Long-term progress tracking' },
+/** Only things the app actually does. No therapist, no messaging, no refund. */
+const FEATURES: { icon: IconName; label: string }[] = [
+  { icon: 'plan',     label: 'Guided sessions whenever you need them' },
+  { icon: 'bolt',     label: 'A plan that adapts to the pain you log' },
+  { icon: 'progress', label: 'Your full progress history and trends' },
+  { icon: 'calendar', label: 'Streaks and weekly summaries' },
 ];
 
-function SparkleIcon() {
+function SparkleIcon({ size = 48 }: { size?: number }) {
   return (
-    <Svg width={48} height={48} viewBox="0 0 48 48">
+    <Svg width={size} height={size} viewBox="0 0 48 48">
       <Circle cx="24" cy="24" r="22" fill={COLORS.claySoft} stroke={COLORS.claySoft2} strokeWidth="1.5"/>
       <Circle cx="24" cy="24" r="14" fill={COLORS.claySoft2}/>
-      {/* sparkle paths */}
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-        const r   = deg % 90 === 0 ? 10 : 7;
-        const rad = (deg * Math.PI) / 180;
-        const x2  = 24 + r * Math.cos(rad);
-        const y2  = 24 + r * Math.sin(rad);
-        return (
-          <Svg key={i}>
-            <Circle cx={x2} cy={y2} r={deg % 90 === 0 ? 2.5 : 1.5} fill={COLORS.clay}/>
-          </Svg>
-        );
-      })}
+      <G>
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
+          const r   = deg % 90 === 0 ? 10 : 7;
+          const rad = (deg * Math.PI) / 180;
+          const cx  = 24 + r * Math.cos(rad);
+          const cy  = 24 + r * Math.sin(rad);
+          return (
+            <Circle
+              key={deg}
+              cx={cx}
+              cy={cy}
+              r={deg % 90 === 0 ? 2.5 : 1.5}
+              fill={COLORS.clay}
+            />
+          );
+        })}
+      </G>
       <Circle cx="24" cy="24" r="4" fill={COLORS.clay}/>
     </Svg>
   );
 }
 
+/** First vs latest logged session pain. Null when there is nothing real to show. */
+function usePainLine(): { text: string; improved: boolean } | null {
+  const weeklyPain = useProgressStore((s) => s.weeklyPain);
+
+  return useMemo(() => {
+    // Zero means "no session logged that day", not "no pain".
+    const logged = weeklyPain.filter((v) => v > 0);
+    if (logged.length < 2) return null;
+
+    const first = logged[0];
+    const last  = logged[logged.length - 1];
+    const fmt   = (n: number) => n.toFixed(1);
+
+    if (last === first) {
+      return { text: `Pain steady at ${fmt(last)} across your logged sessions`, improved: false };
+    }
+    return {
+      text: `Pain ${fmt(first)} to ${fmt(last)} from your first to your latest session`,
+      improved: last < first,
+    };
+  }, [weeklyPain]);
+}
+
 export default function TrialEndScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const { trialDaysLeft, weeklyPainDrop, subscription } = useAuthStore() as any;
+  const router = useRouter();
+  const access = useAccess();
+  const painLine = usePainLine();
   const [restoring, setRestoring] = useState(false);
+  const [restoreNote, setRestoreNote] = useState<string | null>(null);
+
+  function dismiss() {
+    if (router.canGoBack?.()) router.back();
+    else router.replace('/(main)');
+  }
 
   async function handleRestore() {
     setRestoring(true);
+    setRestoreNote(null);
     try {
       const info = await restorePurchases();
       if (hasActiveEntitlement(info)) {
+        applyCustomerInfoToStore(info);
         router.replace('/subscription/subscribed');
+        return;
       }
-    } catch { /* silent */ } finally {
+      setRestoreNote(`No subscription to restore on this ${STORE_NAME} account.`);
+    } finally {
       setRestoring(false);
     }
   }
 
+  const dayNumber = PRICING.trialDays + 1 - access.trialDaysLeft;
+  const eyebrow =
+    access.state === 'trial'
+      ? `Day ${dayNumber} of ${PRICING.trialDays} of your free trial`
+      : access.state === 'limited'
+        ? 'Your free trial has ended'
+        : 'Full access';
+
+  const headline =
+    access.state === 'trial' ? 'Your trial ends soon.' : 'Keep your sessions going.';
+
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <AppBar
-        left={<IconBtn icon="close" onPress={() => router.back()}/>}
+        left={<IconBtn icon="close" onPress={dismiss}/>}
         right={
           <TouchableOpacity onPress={handleRestore} disabled={restoring}>
-            <Text style={styles.restoreText}>{restoring ? 'Restoring…' : 'Restore'}</Text>
+            <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore'}</Text>
           </TouchableOpacity>
         }
       />
@@ -77,25 +130,30 @@ export default function TrialEndScreen() {
           <View style={[styles.ring, styles.ring2]}/>
           <View style={[styles.ring, styles.ring1]}/>
           <View style={styles.iconCenter}>
-            <Icon name="sparkle" size={28} color={COLORS.clay}/>
+            <SparkleIcon size={48}/>
           </View>
         </View>
 
-        <Text style={styles.eyebrow}>Day 7 of 7 · trial ending</Text>
-        <Text style={styles.headline}>You're moving beautifully.</Text>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        <Text style={styles.headline}>{headline}</Text>
 
-        {/* Pain drop stat */}
-        <View style={styles.statPill}>
-          <Text style={styles.statText}>↓ Pain reduced since you started</Text>
-        </View>
+        {painLine && (
+          <View style={[styles.statPill, painLine.improved ? styles.statPillGood : styles.statPillFlat]}>
+            <Text style={[styles.statText, painLine.improved ? styles.statTextGood : styles.statTextFlat]}>
+              {painLine.text}
+            </Text>
+          </View>
+        )}
+
+        {restoreNote && <Text style={styles.note}>{restoreNote}</Text>}
 
         {/* Features */}
         <View style={styles.featuresCard}>
-          <Text style={styles.featuresTitle}>Everything in full access</Text>
+          <Text style={styles.featuresTitle}>What a subscription includes</Text>
           {FEATURES.map((f) => (
             <View key={f.label} style={styles.featureRow}>
               <View style={styles.featureIcon}>
-                <Icon name={f.icon as any} size={16} color={COLORS.clay}/>
+                <Icon name={f.icon} size={16} color={COLORS.clay}/>
               </View>
               <Text style={styles.featureLabel}>{f.label}</Text>
             </View>
@@ -112,12 +170,14 @@ export default function TrialEndScreen() {
           style={styles.ctaBtn}
         />
 
-        <TouchableOpacity
-          style={styles.limitLink}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.limitText}>Continue with limits</Text>
+        <TouchableOpacity style={styles.limitLink} onPress={dismiss}>
+          <Text style={styles.limitText}>Not now</Text>
         </TouchableOpacity>
+        <Text style={styles.limitHint}>
+          You keep your plan and your past progress. Starting a new guided session
+          needs a subscription.
+        </Text>
+        <Text style={styles.finePrint}>Cancel any time in your {STORE_NAME} settings.</Text>
       </ScrollView>
     </View>
   );
@@ -147,19 +207,28 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
-    letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3, marginBottom: 8,
-  },
+    fontFamily: fontFor('700'), fontSize: 11,
+    letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3,
+    marginBottom: 8, textAlign: 'center' },
   headline: {
     fontFamily: FONTS.serif, fontSize: 30, color: COLORS.ink,
     textAlign: 'center', marginBottom: 16,
   },
 
   statPill: {
-    backgroundColor: COLORS.sageSoft, borderRadius: RADII.r4,
+    borderRadius: RADII.r4,
     paddingHorizontal: 16, paddingVertical: 8, marginBottom: 28,
   },
-  statText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.sageDeep, fontWeight: '600' },
+  statPillGood: { backgroundColor: COLORS.sageSoft },
+  statPillFlat: { backgroundColor: COLORS.surface2 },
+  statText: { fontFamily: fontFor('600'), fontSize: 13, textAlign: 'center' },
+  statTextGood: { color: COLORS.sageDeep },
+  statTextFlat: { color: COLORS.ink2 },
+
+  note: {
+    fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink3,
+    textAlign: 'center', marginBottom: 16,
+  },
 
   featuresCard: {
     width: '100%', backgroundColor: COLORS.surface,
@@ -167,17 +236,23 @@ const styles = StyleSheet.create({
     borderRadius: RADII.r2, padding: 16, marginBottom: 24, gap: 14,
   },
   featuresTitle: {
-    fontFamily: FONTS.sans, fontSize: 13, fontWeight: '700', color: COLORS.ink, marginBottom: 4,
-  },
+    fontFamily: fontFor('700'), fontSize: 13, color: COLORS.ink, marginBottom: 4 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   featureIcon: {
     width: 32, height: 32, borderRadius: 8,
     backgroundColor: COLORS.claySoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  featureLabel: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink2 },
+  featureLabel: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink2, flex: 1 },
 
-  ctaBtn: { marginBottom: 16 },
+  ctaBtn: { marginBottom: 8 },
   limitLink: { paddingVertical: 12 },
-  limitText: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink3 },
+  limitText: { fontFamily: fontFor('600'), fontSize: 14, color: COLORS.ink2 },
+  limitHint: {
+    fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3,
+    textAlign: 'center', lineHeight: 18, marginBottom: 12,
+  },
+  finePrint: {
+    fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink4, textAlign: 'center',
+  },
 });

@@ -7,7 +7,7 @@
  */
 
 import { CONDITIONS, CONDITION_MAP } from '@/data/conditions';
-import { EXERCISE_MAP } from '@/data/exercises';
+import { EXERCISES, EXERCISE_MAP } from '@/data/exercises';
 import type { BodyArea } from '@/data/conditions';
 
 // ---------------------------------------------------------------------------
@@ -95,10 +95,30 @@ describe('each Condition has required fields', () => {
     expect(bodyRegions.length).toBeGreaterThan(0);
   });
 
-  test.each(CONDITIONS)('$id — exerciseIds has at least 3 entries', ({ id, exerciseIds }) => {
+  test.each(CONDITIONS)('$id — exerciseIds has 10 to 12 entries so sessions can rotate', ({ id, exerciseIds }) => {
     expect(Array.isArray(exerciseIds)).toBe(true);
-    expect(exerciseIds.length).toBeGreaterThanOrEqual(3);
+    expect(exerciseIds.length).toBeGreaterThanOrEqual(10);
+    expect(exerciseIds.length).toBeLessThanOrEqual(12);
   });
+
+  test.each(CONDITIONS)('$id — exerciseIds contains no duplicates', ({ id, exerciseIds }) => {
+    expect(new Set(exerciseIds).size).toBe(exerciseIds.length);
+  });
+
+  test.each(CONDITIONS)(
+    '$id — the pool holds at least twice the session size, so days do not repeat',
+    ({ id, exerciseIds, routineTemplate }) => {
+      expect(exerciseIds.length).toBeGreaterThanOrEqual(routineTemplate.exercisesPerSession * 2);
+    },
+  );
+
+  test.each(CONDITIONS)(
+    '$id — the pool has enough tier-1 exercises to fill an opening session',
+    ({ id, exerciseIds }) => {
+      const tier1 = exerciseIds.filter((exId) => EXERCISE_MAP[exId]?.intensityTier === 1);
+      expect(tier1.length).toBeGreaterThanOrEqual(2);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -115,6 +135,45 @@ describe('Condition exerciseIds reference valid exercises', () => {
       }
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Bidirectional cross-reference: no orphan ids in either direction
+// ---------------------------------------------------------------------------
+
+describe('Condition and exercise references agree in both directions', () => {
+  test.each(CONDITIONS)('$id — every pooled exercise names this condition back', ({ id, exerciseIds }) => {
+    for (const exId of exerciseIds) {
+      const ex = EXERCISE_MAP[exId];
+      expect(ex).toBeDefined();
+      expect(ex.conditionIds).toContain(id);
+    }
+  });
+
+  it('no exercise references a condition that does not exist', () => {
+    const orphans: string[] = [];
+    for (const ex of EXERCISES) {
+      for (const cid of ex.conditionIds) {
+        if (!CONDITION_MAP[cid]) orphans.push(`${ex.id} -> ${cid}`);
+      }
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  it('no condition references an exercise that does not exist', () => {
+    const orphans: string[] = [];
+    for (const cond of CONDITIONS) {
+      for (const exId of cond.exerciseIds) {
+        if (!EXERCISE_MAP[exId]) orphans.push(`${cond.id} -> ${exId}`);
+      }
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  it('every exercise is reachable from at least one condition', () => {
+    const pooled = new Set(CONDITIONS.flatMap((c) => c.exerciseIds));
+    expect(EXERCISES.filter((ex) => !pooled.has(ex.id)).map((ex) => ex.id)).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

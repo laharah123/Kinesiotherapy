@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { COLORS, FONTS, SHADOWS } from '@/lib/tokens';
+import { COLORS, SHADOWS, fontFor } from '@/lib/tokens';
 import { Icon } from '@/lib/icons';
 import type { IconName } from '@/lib/tokens';
 
@@ -80,9 +80,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.claySoft,
   },
   label: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('500'),
     fontSize: 11,
-    fontWeight: '500',
   },
   labelActive: {
     color: COLORS.clay,

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
 } from 'react-native';
@@ -7,24 +6,35 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIntakeStore } from '@/lib/store/intake';
 import { useSessionStore } from '@/lib/store/session';
+import { canStartSession, PAYWALL_ROUTE } from '@/lib/access';
 import { EXERCISE_MAP } from '@/data/exercises';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 export default function PlanScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { generatedPlan } = useIntakeStore();
+  const { generatedPlan, getCurrentDay, getNextActiveDay } = useIntakeStore();
   const { activeSession, currentExerciseIndex } = useSessionStore();
 
-  // Find the current active day (first non-rest day)
-  const plan = generatedPlan;
-  const today = plan?.schedule.find((d) => !d.isRest) ?? plan?.schedule[0];
-  const exercises = today?.exercises ?? [];
+  const plan       = generatedPlan;
+  const today      = getCurrentDay();
+  const nextActive = getNextActiveDay();
+  // A rest day or a finished day previews the next real session instead.
+  const shownDay   = !today || today.isRest || today.completedToday ? nextActive : today;
+  const exercises  = shownDay?.exercises ?? [];
   const completedCount = activeSession ? currentExerciseIndex : 0;
+
+  function startSession() {
+    if (!canStartSession()) {
+      router.push(PAYWALL_ROUTE);
+      return;
+    }
+    router.push('/session/today');
+  }
 
   if (!plan) {
     return (
@@ -43,16 +53,23 @@ export default function PlanScreen() {
   }, 0);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <AppBar
-        title={plan.title}
-        right={<Icon name="more" size={22} color={COLORS.ink}/>}
-      />
+    <View style={styles.root}>
+      {/* AppBar applies the top inset itself */}
+      <AppBar title={plan.title}/>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero card */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Today's session</Text>
+          <Text style={styles.heroEyebrow}>
+            {today?.isRest
+              ? `Rest day · day ${today.day} of ${plan.durationDays}`
+              : today?.completedToday
+                ? `Day ${today.day} complete`
+                : `Day ${shownDay?.day ?? 1} of ${plan.durationDays}`}
+          </Text>
+          <Text style={styles.heroTitle}>
+            {today?.isRest || today?.completedToday ? 'Next session' : "Today's session"}
+          </Text>
           <View style={styles.heroMeta}>
             <View style={styles.heroMetaItem}>
               <Icon name="clock" size={14} color={COLORS.ink3}/>
@@ -81,11 +98,10 @@ export default function PlanScreen() {
             const ex      = EXERCISE_MAP[pe.exerciseId];
             const done    = idx < completedCount;
             const active  = idx === completedCount;
-            const upcoming = idx > completedCount;
             if (!ex) return null;
 
             return (
-              <View key={pe.exerciseId} style={styles.rowWrap}>
+              <View key={`${pe.exerciseId}-${idx}`} style={styles.rowWrap}>
                 {/* Connecting line */}
                 {idx < exercises.length - 1 && (
                   <View style={[styles.connector, done && styles.connectorDone]}/>
@@ -143,7 +159,8 @@ export default function PlanScreen() {
           label={completedCount > 0 ? 'Continue session' : 'Start session'}
           full
           icon="play"
-          onPress={() => router.push('/session/today')}
+          disabled={exercises.length === 0}
+          onPress={startSession}
         />
       </View>
     </View>
@@ -166,6 +183,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: RADII.r2, padding: 18, marginBottom: 24,
   },
+  heroEyebrow: {
+    fontFamily: fontFor('700'), fontSize: 10,
+    letterSpacing: 1.2, textTransform: 'uppercase', color: COLORS.ink3, marginBottom: 6 },
   heroTitle: { fontFamily: FONTS.serif, fontSize: 20, color: COLORS.ink, marginBottom: 12 },
   heroMeta: { flexDirection: 'row', gap: 18 },
   heroMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -175,7 +195,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 16,
   },
-  seqTitle: { fontFamily: FONTS.sans, fontSize: 13, fontWeight: '700', color: COLORS.ink },
+  seqTitle: { fontFamily: fontFor('700'), fontSize: 13, color: COLORS.ink },
   seqCount: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3 },
 
   sequence: { gap: 0 },
@@ -202,15 +222,14 @@ const styles = StyleSheet.create({
   },
   circleDone: { backgroundColor: COLORS.sage, borderColor: COLORS.sage },
   circleActive: { backgroundColor: COLORS.clay, borderColor: COLORS.clay },
-  circleNum: { fontFamily: FONTS.sans, fontSize: 13, fontWeight: '700', color: COLORS.ink3 },
+  circleNum: { fontFamily: fontFor('700'), fontSize: 13, color: COLORS.ink3 },
   circleNumActive: { color: '#fff' },
 
   exBody: { flex: 1 },
   upNextLabel: {
-    fontFamily: FONTS.sans, fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.clay, marginBottom: 2,
-  },
-  exName: { fontFamily: FONTS.sans, fontSize: 14, fontWeight: '600', color: COLORS.ink },
+    fontFamily: fontFor('700'), fontSize: 10,
+    letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.clay, marginBottom: 2 },
+  exName: { fontFamily: fontFor('600'), fontSize: 14, color: COLORS.ink },
   exNameDone: { color: COLORS.ink3 },
   exMeta: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3, marginTop: 2 },
 

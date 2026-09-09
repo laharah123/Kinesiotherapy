@@ -14,18 +14,25 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet, type AppStateStatus } from 'react-native';
 
-import { supabase } from '@/lib/supabase';
-import { fetchProfile, fetchSubscription, createTrialSubscription } from '@/lib/supabase';
+import { supabase, fetchProfile, fetchSubscription } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/store/auth';
-import { initRevenueCat, identifyRevenueCatUser } from '@/lib/revenuecat';
+import { loadOnboardingFlag, markAuthReady, useAuthBootstrap } from '@/lib/auth/bootstrap';
+import {
+  initRevenueCat,
+  identifyRevenueCatUser,
+  resetRevenueCatUser,
+} from '@/lib/revenuecat';
 import { COLORS } from '@/lib/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Profile rows are created by a database trigger, so the first read can race it. */
+const PROFILE_RETRIES = [0, 400, 1200];
+
 export default function RootLayout() {
-  const { setUser, setProfile, setSubscription, signOut } = useAuthStore();
+  const { ready } = useAuthBootstrap();
 
   const [fontsLoaded, fontError] = useFonts({
     InstrumentSerif: InstrumentSerif_400Regular,
@@ -36,68 +43,117 @@ export default function RootLayout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  // Hide splash once fonts are ready
+  const fontsReady = fontsLoaded || !!fontError;
+
+  // Hide the splash only once fonts AND the first auth event have arrived
   useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
-  }, [fontsLoaded, fontError]);
+    if (fontsReady && ready) SplashScreen.hideAsync().catch(() => { /* already hidden */ });
+  }, [fontsReady, ready]);
+
+  // Hydrate the persisted onboarding flag
+  useEffect(() => {
+    loadOnboardingFlag();
+  }, []);
 
   // Bootstrap auth state and listen for changes
   useEffect(() => {
     initRevenueCat();
 
+    const { setUser, setProfile, setSubscription } = useAuthStore.getState();
+    let cancelled = false;
+
+    async function loadProfile(userId: string) {
+      for (const delay of PROFILE_RETRIES) {
+        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+        if (cancelled) return;
+        try {
+          const profile = await fetchProfile(userId);
+          if (cancelled) return;
+          setProfile({
+            id: profile.id,
+            displayName: profile.display_name ?? '',
+            createdAt: profile.created_at,
+            streakDays: profile.streak_days,
+            lastSession: profile.last_session,
+          });
+          return;
+        } catch {
+          // Trigger may not have run yet; fall through to the next attempt.
+        }
+      }
+    }
+
+    async function loadSubscription(userId: string) {
+      try {
+        const sub = await fetchSubscription(userId);
+        if (cancelled) return;
+        setSubscription(
+          sub
+            ? {
+                id: sub.id,
+                planType: sub.plan_type,
+                status: sub.status as 'trialing' | 'active' | 'cancelled' | 'none',
+                trialEndsAt: sub.trial_ends_at,
+                currentPeriodEnds: sub.current_period_ends,
+              }
+            : null,
+        );
+      } catch {
+        // Leave the existing subscription state alone on a transient failure.
+      }
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (
+          event !== 'INITIAL_SESSION' &&
+          event !== 'SIGNED_IN' &&
+          event !== 'TOKEN_REFRESHED' &&
+          event !== 'SIGNED_OUT' &&
+          event !== 'USER_UPDATED'
+        ) {
+          return;
+        }
+
         if (session?.user) {
           setUser({ id: session.user.id, email: session.user.email ?? '' });
           identifyRevenueCatUser(session.user.id);
-
-          // Load profile
-          try {
-            const profile = await fetchProfile(session.user.id);
-            setProfile({
-              id: profile.id,
-              displayName: profile.display_name ?? '',
-              createdAt: profile.created_at,
-              streakDays: profile.streak_days,
-              lastSession: profile.last_session,
-            });
-          } catch {
-            // Profile created by trigger; retry once
-            await new Promise((r) => setTimeout(r, 500));
-            try {
-              const profile = await fetchProfile(session.user.id);
-              setProfile({
-                id: profile.id,
-                displayName: profile.display_name ?? '',
-                createdAt: profile.created_at,
-                streakDays: profile.streak_days,
-                lastSession: profile.last_session,
-              });
-            } catch { /* silent */ }
-          }
-
-          // Load or create subscription
-          try {
-            let sub = await fetchSubscription(session.user.id);
-            if (!sub) sub = await createTrialSubscription(session.user.id);
-            setSubscription({
-              id: sub.id,
-              planType: sub.plan_type,
-              status: sub.status as 'trialing' | 'active' | 'cancelled' | 'none',
-              trialEndsAt: sub.trial_ends_at,
-              currentPeriodEnds: sub.current_period_ends,
-            });
-          } catch { /* silent */ }
+          // Routing can proceed as soon as the user is known.
+          markAuthReady();
+          loadProfile(session.user.id);
+          loadSubscription(session.user.id);
         } else {
-          signOut();
+          useAuthStore.getState().signOut();
+          resetRevenueCatUser();
+          markAuthReady();
         }
       },
     );
 
-    return () => subscription.unsubscribe();
+    // Safety net: never leave the app stuck on the splash if the first auth
+    // event never arrives (for example when storage is unavailable).
+    const fallback = setTimeout(markAuthReady, 5000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(fallback);
+      subscription.unsubscribe();
+    };
   }, []);
 
-  if (!fontsLoaded && !fontError) return null;
+  // Supabase auto refresh should only run while the app is in the foreground
+  useEffect(() => {
+    function handleAppState(state: AppStateStatus) {
+      if (state === 'active') supabase.auth.startAutoRefresh();
+      else supabase.auth.stopAutoRefresh();
+    }
+
+    handleAppState(AppState.currentState);
+    const sub = AppState.addEventListener('change', handleAppState);
+    return () => sub.remove();
+  }, []);
+
+  if (!fontsReady) return null;
 
   return (
     <GestureHandlerRootView style={styles.root}>

@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Linking, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
 
 import { useAuthStore } from '@/lib/store/auth';
 import {
-  getCustomerInfo, extractSubscriptionStatus, addCustomerInfoListener,
+  getCustomerInfo, addCustomerInfoListener, applyCustomerInfoToStore,
+  STORE_NAME, MANAGE_SUBSCRIPTION_URL,
 } from '@/lib/revenuecat';
 import { Button } from '@/components/ui/Button';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { Icon } from '@/lib/icons';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 function ExpandingRings() {
   const scale1 = useRef(new Animated.Value(0.4)).current;
@@ -53,7 +54,7 @@ function ExpandingRings() {
       ))}
       {/* Centre check circle */}
       <View style={rings.center}>
-        <Text style={rings.check}>✓</Text>
+        <Icon name="check" size={28} color="#fff"/>
       </View>
       {/* Floating accent circles */}
       <View style={[rings.accent, rings.accentOchre, { top: 10, right: 20 }]}/>
@@ -79,53 +80,31 @@ const rings = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     zIndex: 10,
   },
-  check: { color: '#fff', fontSize: 28, fontWeight: '700' },
   accent: { position: 'absolute', width: 18, height: 18, borderRadius: 9 },
   accentOchre: { backgroundColor: COLORS.ochre },
   accentSage:  { backgroundColor: COLORS.sage },
 });
 
 export default function SubscribedScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const { subscription, setSubscription } = useAuthStore();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const subscription = useAuthStore((s) => s.subscription);
 
-  // Confirm subscription with RevenueCat
+  // Confirm with RevenueCat and unlock locally. The subscriptions row itself is
+  // written server side by the RevenueCat webhook.
   useEffect(() => {
     const remove = addCustomerInfoListener((info) => {
-      const status = extractSubscriptionStatus(info);
-      if (status.isActive) {
-        setSubscription({
-          id: 'rc',
-          planType: status.planType,
-          status: 'active',
-          trialEndsAt: null,
-          currentPeriodEnds: status.expiresAt,
-        });
-      }
+      applyCustomerInfoToStore(info);
     });
 
-    getCustomerInfo()
-      .then((info) => {
-        const status = extractSubscriptionStatus(info);
-        if (status.isActive) {
-          setSubscription({
-            id: 'rc',
-            planType: status.planType,
-            status: 'active',
-            trialEndsAt: null,
-            currentPeriodEnds: status.expiresAt,
-          });
-        }
-      })
-      .catch(() => {});
+    getCustomerInfo().then(applyCustomerInfoToStore).catch(() => {});
 
     return remove;
   }, []);
 
   const planLabel = subscription?.planType === 'yearly' ? 'Yearly plan' : 'Monthly plan';
   const renewalDate = subscription?.currentPeriodEnds
-    ? new Date(subscription.currentPeriodEnds).toLocaleDateString('en-US', {
+    ? new Date(subscription.currentPeriodEnds).toLocaleDateString(undefined, {
         month: 'long', day: 'numeric', year: 'numeric',
       })
     : null;
@@ -138,7 +117,8 @@ export default function SubscribedScreen() {
         <Text style={styles.eyebrow}>You're in.</Text>
         <Text style={styles.headline}>Welcome to full access.</Text>
         <Text style={styles.sub}>
-          Unlimited plans, adaptive sessions, and progress tracking — all yours.
+          Guided sessions, a plan that adapts to the pain you log, and your full
+          progress history.
         </Text>
 
         {/* Subscription summary card */}
@@ -157,11 +137,17 @@ export default function SubscribedScreen() {
             </>
           )}
           <View style={styles.cardDivider}/>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Manage</Text>
-            <Text style={styles.manageLink}>App Store settings</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.cardRow}
+            onPress={() => Linking.openURL(MANAGE_SUBSCRIPTION_URL).catch(() => {})}
+            accessibilityRole="link"
+          >
+            <Text style={styles.cardLabel}>Manage subscription</Text>
+            <Text style={styles.manageLink}>{STORE_NAME} settings</Text>
+          </TouchableOpacity>
         </View>
+
+        <Text style={styles.finePrint}>Cancel any time in your {STORE_NAME} settings.</Text>
       </View>
 
       <Button
@@ -184,10 +170,9 @@ const styles = StyleSheet.create({
   content: { alignItems: 'center', flex: 1, justifyContent: 'center', gap: 12 },
 
   eyebrow: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1.2, textTransform: 'uppercase', color: COLORS.ink3,
-    marginTop: 24,
-  },
+    marginTop: 24 },
   headline: { fontFamily: FONTS.serif, fontSize: 30, color: COLORS.ink, textAlign: 'center' },
   sub: {
     fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink2,
@@ -205,9 +190,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', padding: 14,
   },
   cardLabel: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink3 },
-  cardValue: { fontFamily: FONTS.sans, fontSize: 13, fontWeight: '600', color: COLORS.ink },
+  cardValue: { fontFamily: fontFor('600'), fontSize: 13, color: COLORS.ink },
   cardDivider: { height: 1, backgroundColor: COLORS.borderSoft },
   manageLink: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.clay },
+
+  finePrint: {
+    fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink4, textAlign: 'center',
+  },
 
   cta: { width: '100%' },
 });

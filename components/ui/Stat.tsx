@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { COLORS, RADII, FONTS } from '@/lib/tokens';
+import { COLORS, RADII, FONTS, fontFor } from '@/lib/tokens';
 import type { ToneColor } from '@/lib/tokens';
 
 interface StatProps {
@@ -38,9 +38,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('700'),
     fontSize: 10.5,
-    fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
     opacity: 0.8,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle, type TextStyle } from 'react-native';
-import { COLORS, RADII, FONTS } from '@/lib/tokens';
+import { COLORS, RADII, fontFor } from '@/lib/tokens';
 import type { ToneColor } from '@/lib/tokens';
 
 interface TagProps {
@@ -44,8 +44,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   label: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('600'),
     fontSize: 12,
-    fontWeight: '600',
   },
 });

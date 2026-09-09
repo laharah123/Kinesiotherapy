@@ -1,20 +1,40 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, type DimensionValue } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Choice } from '@/components/ui/Choice';
 import { useIntakeStore } from '@/lib/store/intake';
-import { savePlan } from '@/lib/supabase';
+import { savePlanWithSchedule } from '@/lib/plans/api';
+import { localDateString } from '@/lib/plans/dates';
 import { useAuthStore } from '@/lib/store/auth';
 import { Icon } from '@/lib/icons';
 import { COLORS, FONTS, RADII } from '@/lib/tokens';
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-const STEPS = [
+interface StepOption {
+  value: string;
+  label: string;
+  subtitle: string;
+}
+
+interface Step {
+  key: 'painDuration' | 'painIntensity' | 'aggravatingFactors' | 'previousTreatment' | 'goals';
+  question: string;
+  /** Multi-select step: answers are stored as an array. */
+  multi?: boolean;
+  /** Values are stored as numbers rather than strings. */
+  numeric?: boolean;
+  options: StepOption[];
+}
+
+/** The value that means "nothing applies" and so clears every other choice. */
+const NONE_VALUE = 'none';
+
+const STEPS: Step[] = [
   {
-    key: 'painDuration' as const,
+    key: 'painDuration',
     question: 'How long have you had this pain?',
     options: [
       { value: 'acute',      label: 'Just a few days',        subtitle: 'Started recently' },
@@ -24,8 +44,9 @@ const STEPS = [
     ],
   },
   {
-    key: 'painIntensity' as const,
+    key: 'painIntensity',
     question: 'How intense is the pain right now?',
+    numeric: true,
     options: [
       { value: '0', label: 'None',     subtitle: 'No pain at rest' },
       { value: '1', label: 'Mild',     subtitle: 'Noticeable but manageable' },
@@ -35,7 +56,7 @@ const STEPS = [
     ],
   },
   {
-    key: 'aggravatingFactors' as const,
+    key: 'aggravatingFactors',
     question: 'What makes it worse?',
     multi: true,
     options: [
@@ -47,7 +68,7 @@ const STEPS = [
     ],
   },
   {
-    key: 'previousTreatment' as const,
+    key: 'previousTreatment',
     question: 'Have you had treatment before?',
     multi: true,
     options: [
@@ -58,7 +79,7 @@ const STEPS = [
     ],
   },
   {
-    key: 'goals' as const,
+    key: 'goals',
     question: "What's your main goal?",
     multi: true,
     options: [
@@ -74,16 +95,18 @@ const TOTAL = STEPS.length;
 
 export default function QuestionnaireScreen() {
   const router   = useRouter();
-  const { answers, setAnswer, submitQuestionnaire } = useIntakeStore();
+  const {
+    answers, setAnswer, submitQuestionnaire, setActivePlanId, setPlanStartedAt,
+  } = useIntakeStore();
   const { user } = useAuthStore();
 
   const [step, setStep]       = useState(0);
   const [loading, setLoading] = useState(false);
 
   const current = STEPS[step];
-  const isMulti = 'multi' in current && current.multi;
+  const isMulti = current.multi === true;
 
-  // Current answer value(s)
+  // Current answer value(s), always compared as strings
   const rawValue = answers[current.key];
   const selected: string[] = Array.isArray(rawValue)
     ? rawValue
@@ -91,15 +114,23 @@ export default function QuestionnaireScreen() {
 
   function toggle(value: string) {
     if (isMulti) {
-      const next = selected.includes(value)
-        ? selected.filter((v) => v !== value)
-        : [...selected, value];
-      setAnswer(current.key as any, next as any);
-    } else {
-      setAnswer(current.key as any, value as any);
+      let next: string[];
+      if (selected.includes(value)) {
+        next = selected.filter((v) => v !== value);
+      } else if (value === NONE_VALUE) {
+        // "None" is exclusive: choosing it clears everything else.
+        next = [NONE_VALUE];
+      } else {
+        next = [...selected.filter((v) => v !== NONE_VALUE), value];
+      }
+      setAnswer(current.key, next as never);
+      return;
     }
+
+    setAnswer(current.key, (current.numeric ? Number(value) : value) as never);
   }
 
+  /** Every step needs an explicit choice before the user can move on. */
   function canAdvance() {
     return selected.length > 0;
   }
@@ -110,31 +141,24 @@ export default function QuestionnaireScreen() {
       return;
     }
 
-    // Final step — generate plan and navigate
+    // Final step: generate the plan, save it with its schedule, then navigate
     setLoading(true);
     try {
       const plan = submitQuestionnaire();
+      setPlanStartedAt(localDateString());
       if (user) {
-        await savePlan(user.id, {
-          condition_id:  plan.conditionId,
-          title:         plan.title,
-          effort:        plan.effort,
-          duration_days: plan.durationDays,
-          exercise_pool: plan.exercisePool,
-          user_tier:     plan.userTier,
-          pain_ema:      plan.painEMA,
-        });
+        const planId = await savePlanWithSchedule(user.id, plan);
+        setActivePlanId(planId);
       }
-      router.replace('/(main)');
     } catch {
-      // Continue anyway — plan lives in local store
-      router.replace('/(main)');
+      // Offline: the plan lives in the local store and usePlanSync retries.
     } finally {
       setLoading(false);
+      router.replace('/(main)');
     }
   }
 
-  const highPain = answers.painIntensity != null && Number(answers.painIntensity) >= 3;
+  const highPain = answers.painIntensity != null && answers.painIntensity >= 3;
 
   return (
     <View style={styles.root}>
@@ -149,7 +173,7 @@ export default function QuestionnaireScreen() {
 
       {/* Progress bar */}
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${((step + 1) / TOTAL) * 100}%` as any }]}/>
+        <View style={[styles.progressFill, { width: `${((step + 1) / TOTAL) * 100}%` as DimensionValue }]}/>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

@@ -36,10 +36,14 @@ export interface Plan {
   promotionStreak: number;
   demotionTrigger: number;
   schedule: DaySchedule[];
-  effort: 'Light' | 'Moderate' | 'Vigorous';
+  effort: EffortLabel;
   title: string;
   durationDays: number;
+  /** Exercises the user reported as pinching. Never offered again. */
+  excludedExerciseIds: string[];
 }
+
+export type EffortLabel = 'Light' | 'Moderate' | 'Vigorous';
 
 export interface CompletedExerciseLog {
   exerciseId: string;
@@ -61,6 +65,8 @@ export interface SessionAdaptation {
   promoted: boolean;
   demoted: boolean;
   parameterNote?: string;
+  /** Plan-level exclusions after this session (previous ones plus new "Pinched"). */
+  excludedExerciseIds: string[];
 }
 
 // ─── Pool building ─────────────────────────────────────────────────────────────
@@ -102,15 +108,21 @@ function pickExercisesForDay(
   dayIndex: number,
   count: number,
   adjustment?: ParameterAdjustment,
+  avoidExerciseIds: string[] = [],
 ): PlanExercise[] {
   const available = exercisesForTier(pool, tier);
   if (available.length === 0) return [];
 
+  // Prefer exercises the user has not just done, but only while the remaining
+  // pool is still large enough to fill the session.
+  const fresh  = available.filter((ex) => !avoidExerciseIds.includes(ex.id));
+  const source = fresh.length >= count && fresh.length > 0 ? fresh : available;
+
   // Deterministic rotation: shift start index by dayIndex
-  const start = dayIndex % available.length;
+  const start = ((dayIndex % source.length) + source.length) % source.length;
   const selected: Exercise[] = [];
   for (let i = 0; i < count; i++) {
-    selected.push(available[(start + i) % available.length]);
+    selected.push(source[(start + i) % source.length]);
   }
 
   return selected.map((ex) => applyAdjustment(ex, adjustment));
@@ -141,6 +153,10 @@ function applyAdjustment(ex: Exercise, adj?: ParameterAdjustment): PlanExercise 
 export function generatePlan(intake: IntakeAnswers): Plan {
   const pool = buildExercisePool(intake.conditionId, intake.bodyRegions);
 
+  // Every plan opens at the gentlest tier; days are built from that same tier
+  // rather than from a hard-coded 1, so the two can never drift apart.
+  const startingTier: 1 | 2 | 3 = 1;
+
   const conditionTemplate = intake.conditionId
     ? CONDITION_MAP[intake.conditionId]?.routineTemplate
     : null;
@@ -161,7 +177,7 @@ export function generatePlan(intake: IntakeAnswers): Plan {
     if (isRest) {
       schedule.push({ day, isRest: true, exercises: [] });
     } else {
-      const exercises = pickExercisesForDay(pool, 1, activeDay, exercisesPerSession);
+      const exercises = pickExercisesForDay(pool, startingTier, activeDay, exercisesPerSession);
       schedule.push({ day, isRest: false, exercises });
       activeDay++;
     }
@@ -171,7 +187,7 @@ export function generatePlan(intake: IntakeAnswers): Plan {
     conditionId: intake.conditionId,
     bodyRegions: intake.bodyRegions,
     exercisePool: pool,
-    userTier: 1,
+    userTier: startingTier,
     painEMA: intake.painIntensity,
     promotionStreak: 0,
     demotionTrigger: 0,
@@ -179,19 +195,31 @@ export function generatePlan(intake: IntakeAnswers): Plan {
     effort,
     title,
     durationDays,
+    excludedExerciseIds: [],
   };
 }
 
 // ─── Pain score helpers ────────────────────────────────────────────────────────
 
-function meanPainScore(session: CompletedSession): number {
-  if (session.logs.length === 0) return 0;
-  const sum = session.logs.reduce((acc, log) => acc + log.painLevel, 0);
-  return sum / session.logs.length;
+/**
+ * Skipped exercises carry no usable pain rating, so they are dropped before any
+ * pain maths. The session store already filters them; this is a second guard so
+ * adaptSession is safe to call with a raw log list.
+ */
+function ratedLogs(session: CompletedSession): CompletedExerciseLog[] {
+  return session.logs.filter(
+    (log) => !log.feedbackTags.includes('Skipped') && typeof log.painLevel === 'number',
+  );
 }
 
-function collectAllTags(session: CompletedSession): string[] {
-  return session.logs.flatMap((log) => log.feedbackTags);
+function meanPainScore(logs: CompletedExerciseLog[]): number {
+  if (logs.length === 0) return 0;
+  const sum = logs.reduce((acc, log) => acc + log.painLevel, 0);
+  return sum / logs.length;
+}
+
+function collectAllTags(logs: CompletedExerciseLog[]): string[] {
+  return logs.flatMap((log) => log.feedbackTags);
 }
 
 // ─── Parameter adjustment ─────────────────────────────────────────────────────
@@ -265,9 +293,22 @@ function computeNewTier(
 
 // ─── Session adaptation ───────────────────────────────────────────────────────
 
-export function adaptSession(plan: Plan, completedSession: CompletedSession): SessionAdaptation {
-  const score = meanPainScore(completedSession);
-  const tags  = collectAllTags(completedSession);
+/**
+ * Folds a finished session back into the plan.
+ *
+ * `completedActiveDays` is how many active days the user has finished so far.
+ * It drives the rotation offset, so consecutive sessions draw different
+ * exercises. Callers that do not track it get offset 0 plus the
+ * "avoid what you just did" rule below, which still varies the session.
+ */
+export function adaptSession(
+  plan: Plan,
+  completedSession: CompletedSession,
+  completedActiveDays = 0,
+): SessionAdaptation {
+  const logs  = ratedLogs(completedSession);
+  const score = meanPainScore(logs);
+  const tags  = collectAllTags(logs);
 
   // 'Felt good' gives a bonus push toward promotion
   const effectiveScore = tags.includes('Felt good') ? Math.max(0, score - 0.5) : score;
@@ -294,13 +335,20 @@ export function adaptSession(plan: Plan, completedSession: CompletedSession): Se
 
   const { adj, note } = computeParameterAdjustment(score, tags);
 
-  // Build next session exercises, replacing any "Pinched" exercise
-  const pinnedExercises = completedSession.logs
+  // "Pinched" exclusions are permanent: they join the plan's existing list.
+  const pinchedExercises = logs
     .filter((l) => l.feedbackTags.includes('Pinched'))
     .map((l) => l.exerciseId);
 
-  const availablePool = pinnedExercises.length > 0
-    ? plan.exercisePool.filter((id) => !pinnedExercises.includes(id))
+  const excludedExerciseIds = Array.from(
+    new Set([...(plan.excludedExerciseIds ?? []), ...pinchedExercises]),
+  );
+
+  const filteredPool = plan.exercisePool.filter((id) => !excludedExerciseIds.includes(id));
+  // Never leave the user with nothing: fall back to the full pool if the
+  // exclusions would empty it at this tier.
+  const availablePool = exercisesForTier(filteredPool, newTier).length > 0
+    ? filteredPool
     : plan.exercisePool;
 
   const conditionTemplate = plan.conditionId
@@ -308,9 +356,12 @@ export function adaptSession(plan: Plan, completedSession: CompletedSession): Se
     : null;
   const count = conditionTemplate?.exercisesPerSession ?? 6;
 
-  // Use current active day count as offset for rotation
-  const activeDaysCompleted = plan.schedule.filter((d) => !d.isRest && d.exercises.length > 0).length;
-  const nextExercises = pickExercisesForDay(availablePool, newTier, activeDaysCompleted, count, adj);
+  // Rotate by how many active days the user has actually completed, and prefer
+  // exercises that were not in the session just finished.
+  const justDone = logs.map((l) => l.exerciseId);
+  const nextExercises = pickExercisesForDay(
+    availablePool, newTier, completedActiveDays, count, adj, justDone,
+  );
 
   return {
     newTier,
@@ -321,6 +372,7 @@ export function adaptSession(plan: Plan, completedSession: CompletedSession): Se
     promoted,
     demoted,
     parameterNote: note || undefined,
+    excludedExerciseIds,
   };
 }
 
@@ -340,7 +392,7 @@ export function isExerciseUnlocked(exerciseId: string, userTier: 1 | 2 | 3): boo
 }
 
 /** Effort label from plan pain EMA for display */
-export function effortLabel(painEMA: number): string {
+export function effortLabel(painEMA: number): EffortLabel {
   if (painEMA >= 3) return 'Light';
   if (painEMA >= 1.5) return 'Moderate';
   return 'Vigorous';

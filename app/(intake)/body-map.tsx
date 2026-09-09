@@ -1,25 +1,13 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BodyMap, type BodyRegion } from '@/components/figures/BodyMap';
+import { BodyMap, BODY_REGION_LABELS } from '@/components/figures/BodyMap';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/AppBar';
 import { useIntakeStore } from '@/lib/store/intake';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
-
-const REGION_LABELS: Record<BodyRegion, string> = {
-  neck: 'Neck', leftShoulder: 'L. Shoulder', rightShoulder: 'R. Shoulder',
-  chest: 'Chest', leftElbow: 'L. Elbow', rightElbow: 'R. Elbow',
-  leftWrist: 'L. Wrist', rightWrist: 'R. Wrist',
-  upperAbdomen: 'Upper abdomen', lowerAbdomen: 'Lower abdomen',
-  leftHip: 'L. Hip', rightHip: 'R. Hip',
-  leftKnee: 'L. Knee', rightKnee: 'R. Knee',
-  upperBack: 'Upper back', midBack: 'Mid back', lowBack: 'Lower back',
-  leftGlute: 'L. Glute', rightGlute: 'R. Glute',
-  leftAnkle: 'L. Ankle', rightAnkle: 'R. Ankle',
-};
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 export default function BodyMapScreen() {
   const router  = useRouter();
@@ -81,7 +69,7 @@ export default function BodyMapScreen() {
                   style={styles.chip}
                   onPress={() => toggleRegion(r)}
                 >
-                  <Text style={styles.chipText}>{REGION_LABELS[r]}</Text>
+                  <Text style={styles.chipText}>{BODY_REGION_LABELS[r]}</Text>
                   <Icon name="close" size={12} color={COLORS.clay}/>
                 </TouchableOpacity>
               ))}
@@ -129,10 +117,9 @@ const styles = StyleSheet.create({
 
   chipsSection: { alignSelf: 'stretch', paddingHorizontal: 20, marginTop: 24 },
   chipsLabel: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3,
-    marginBottom: 10,
-  },
+    marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

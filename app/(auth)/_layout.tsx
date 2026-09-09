@@ -1,15 +1,25 @@
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+
 import { useAuthStore } from '@/lib/store/auth';
 
-export default function AuthLayout() {
-  const router  = useRouter();
-  const user    = useAuthStore((s) => s.user);
+// Lets a returning auth session browser hand its result back to the app.
+WebBrowser.maybeCompleteAuthSession();
 
-  // Redirect to main tabs if already signed in
+export default function AuthLayout() {
+  const router   = useRouter();
+  const pathname = usePathname();
+  const user     = useAuthStore((s) => s.user);
+
+  // Signed-in users have no business on login or signup. Onboarding is never
+  // redirected away from: it runs before intake, signed in or not.
   useEffect(() => {
-    if (user) router.replace('/(main)');
-  }, [user]);
+    if (!user) return;
+    if (pathname.endsWith('/login') || pathname.endsWith('/signup')) {
+      router.replace('/');
+    }
+  }, [user, pathname, router]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

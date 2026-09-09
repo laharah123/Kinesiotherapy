@@ -11,21 +11,25 @@ import { AnimatedFigure } from '@/components/figures/AnimatedFigure';
 import { AppBar } from '@/components/ui/AppBar';
 import { IconBtn } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
+import { canStartSession, PAYWALL_ROUTE } from '@/lib/access';
 import { Tag } from '@/components/ui/Tag';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 export default function ExerciseDetailScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
-  const { generatedPlan } = useIntakeStore();
+  const { getCurrentDay, getNextActiveDay } = useIntakeStore();
 
   const exercise = EXERCISE_MAP[exerciseId ?? ''];
 
-  // Find this exercise's params in today's session
-  const today    = generatedPlan?.schedule.find((d) => !d.isRest);
-  const planEx   = today?.exercises.find((e) => e.exerciseId === exerciseId);
+  // Find this exercise's params in the session the plan screen is showing
+  const currentDay = getCurrentDay();
+  const today      = !currentDay || currentDay.isRest || currentDay.completedToday
+    ? getNextActiveDay()
+    : currentDay;
+  const planEx     = today?.exercises.find((e) => e.exerciseId === exerciseId);
 
   const reps    = planEx?.reps          ?? exercise?.defaultReps          ?? 10;
   const sets    = planEx?.sets          ?? exercise?.defaultSets          ?? 2;
@@ -33,7 +37,6 @@ export default function ExerciseDetailScreen() {
   const rest    = planEx?.restSeconds   ?? exercise?.defaultRestSeconds   ?? 20;
 
   const [playing, setPlaying] = useState(true);
-  const [liked,   setLiked]   = useState(false);
 
   // Count position in sequence
   const seqIndex = today?.exercises.findIndex((e) => e.exerciseId === exerciseId) ?? -1;
@@ -54,15 +57,11 @@ export default function ExerciseDetailScreen() {
     exercise.category === 'breathing'? 'ochre' : 'neutral';
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
+      {/* AppBar applies the top inset itself */}
       <AppBar
         left={<IconBtn icon="close" onPress={() => router.back()}/>}
         title={seqIndex >= 0 ? `${seqIndex + 1} of ${seqTotal}` : ''}
-        right={
-          <TouchableOpacity onPress={() => setLiked((v) => !v)}>
-            <Icon name="heart" size={22} color={liked ? COLORS.clay : COLORS.ink3}/>
-          </TouchableOpacity>
-        }
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -70,24 +69,22 @@ export default function ExerciseDetailScreen() {
         <View style={styles.illustrationCard}>
           <AnimatedFigure
             figureType={exercise.figureType}
+            exerciseId={exercise.id}
+            paused={!playing}
             accent={COLORS.clay}
             width="100%"
             height={220}
           />
 
-          {/* Play/pause overlay */}
+          {/* Play and pause drive the figure's animation */}
           <TouchableOpacity
             style={styles.playBtn}
+            accessibilityRole="button"
+            accessibilityLabel={playing ? 'Pause animation' : 'Play animation'}
             onPress={() => setPlaying((v) => !v)}
           >
             <Icon name={playing ? 'pause' : 'play'} size={20} color={COLORS.clay}/>
           </TouchableOpacity>
-
-          {/* Loop tag */}
-          <View style={styles.loopTag}>
-            <Icon name="play" size={10} color={COLORS.ink3}/>
-            <Text style={styles.loopText}>Loop · 4s</Text>
-          </View>
         </View>
 
         {/* Header */}
@@ -150,8 +147,14 @@ export default function ExerciseDetailScreen() {
           style={styles.skipBtn}
         />
         <Button
-          label="Start exercise"
-          onPress={() => router.push('/session/today')}
+          label="Start session"
+          onPress={() => {
+            if (!canStartSession()) {
+              router.push(PAYWALL_ROUTE);
+              return;
+            }
+            router.push('/session/today');
+          }}
           style={styles.startBtn}
           icon="play"
         />
@@ -182,13 +185,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  loopTag: {
-    position: 'absolute', bottom: 16, left: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.surface, borderRadius: RADII.r4,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  loopText: { fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink3 },
 
   header: { paddingHorizontal: 20, paddingTop: 20, gap: 6, marginBottom: 20 },
   name: { fontFamily: FONTS.serif, fontSize: 28, color: COLORS.ink },
@@ -201,16 +197,14 @@ const styles = StyleSheet.create({
   statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
   statValue: { fontFamily: FONTS.serif, fontSize: 22, color: COLORS.ink },
   statLabel: {
-    fontFamily: FONTS.sans, fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.ink3, marginTop: 2,
-  },
+    fontFamily: fontFor('700'), fontSize: 10,
+    letterSpacing: 0.8, textTransform: 'uppercase', color: COLORS.ink3, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: COLORS.borderSoft, marginVertical: 10 },
 
   sectionTitle: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3,
-    paddingHorizontal: 20, marginBottom: 14,
-  },
+    paddingHorizontal: 20, marginBottom: 14 },
   steps: { paddingHorizontal: 20, gap: 16, marginBottom: 24 },
   step: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
   stepNum: {

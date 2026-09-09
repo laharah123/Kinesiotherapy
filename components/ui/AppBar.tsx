@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, fontFor } from '@/lib/tokens';
 import { Icon } from '@/lib/icons';
 import type { IconName } from '@/lib/tokens';
 
@@ -122,9 +122,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('600'),
     fontSize: 15,
-    fontWeight: '600',
     color: COLORS.ink,
   },
   titleDark: {
@@ -161,9 +160,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   segLabel: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('500'),
     fontSize: 13,
-    fontWeight: '500',
   },
   segLabelOn: {
     color: COLORS.bg,

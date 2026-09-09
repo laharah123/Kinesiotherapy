@@ -1,35 +1,79 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+
 import { signUpWithEmail, signInWithOAuth } from '@/lib/supabase';
+import { authErrorMessage } from '@/lib/auth/errors';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 export default function SignupScreen() {
-  const router = useRouter();
+  const router      = useRouter();
+  const emailRef    = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
 
   async function handleSignUp() {
     if (!name || !email || !password) { setError('Please fill in all fields.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true); setError(null);
     try {
-      await signUpWithEmail(email.trim(), password, name.trim());
-      router.replace('/(auth)/onboarding');
+      const data = await signUpWithEmail(email.trim(), password, name.trim());
+      if (!data.session) {
+        // Email confirmation is on: there is no session yet, so stay put and
+        // tell the user what happens next. The root auth listener navigates
+        // once they confirm and sign in.
+        setConfirmEmail(email.trim());
+      }
+      // With confirmation off a session arrives and the root layout routes.
     } catch (e: unknown) {
-      setError((e as Error).message ?? 'Sign up failed.');
+      setError(authErrorMessage(e, 'Sign up failed. Please try again.'));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleOAuth(provider: 'google' | 'apple') {
+    setError(null);
+    try {
+      await signInWithOAuth(provider);
+    } catch (e: unknown) {
+      setError(authErrorMessage(e, 'Sign up failed. Please try again.'));
+    }
+  }
+
+  if (confirmEmail) {
+    return (
+      <View style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.wordmark}>Kinesiotherapy</Text>
+          <Text style={styles.headline}>Check your email.</Text>
+          <Text style={styles.sub}>
+            We sent a confirmation link to {confirmEmail}. Open it to confirm your account, then
+            sign in to start your programme.
+          </Text>
+
+          <Button label="Go to sign in" full onPress={() => router.replace('/(auth)/login')}/>
+
+          <TouchableOpacity style={styles.switchRow} onPress={() => setConfirmEmail(null)}>
+            <Text style={styles.switchText}>
+              Wrong email? <Text style={styles.switchLink}>Go back</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
   }
 
   return (
@@ -48,39 +92,62 @@ export default function SignupScreen() {
           <View style={styles.fieldRow}>
             <Icon name="profile" size={18} color={COLORS.ink3}/>
             <TextInput
-              style={[styles.input, styles.flex]}
+              style={styles.input}
               placeholder="Your name"
               placeholderTextColor={COLORS.ink4}
               autoCapitalize="words"
+              textContentType="name"
+              autoComplete="name"
+              returnKeyType="next"
               value={name}
               onChangeText={setName}
+              onSubmitEditing={() => emailRef.current?.focus()}
+              submitBehavior="submit"
             />
           </View>
 
           <View style={styles.fieldRow}>
             <Icon name="mail" size={18} color={COLORS.ink3}/>
             <TextInput
-              style={[styles.input, styles.flex]}
+              ref={emailRef}
+              style={styles.input}
               placeholder="Email"
               placeholderTextColor={COLORS.ink4}
               autoCapitalize="none"
+              autoCorrect={false}
               keyboardType="email-address"
+              textContentType="username"
+              autoComplete="email"
+              returnKeyType="next"
               value={email}
               onChangeText={setEmail}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              submitBehavior="submit"
             />
           </View>
 
           <View style={styles.fieldRow}>
             <Icon name="lock" size={18} color={COLORS.ink3}/>
             <TextInput
-              style={[styles.input, styles.flex]}
+              ref={passwordRef}
+              style={styles.input}
               placeholder="Password (8+ characters)"
               placeholderTextColor={COLORS.ink4}
               secureTextEntry={!showPw}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              autoComplete="new-password"
+              returnKeyType="go"
               value={password}
               onChangeText={setPassword}
+              onSubmitEditing={handleSignUp}
             />
-            <TouchableOpacity onPress={() => setShowPw((v) => !v)}>
+            <TouchableOpacity
+              onPress={() => setShowPw((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={showPw ? 'Hide password' : 'Show password'}
+            >
               <Icon name="eye" size={18} color={COLORS.ink3}/>
             </TouchableOpacity>
           </View>
@@ -99,16 +166,20 @@ export default function SignupScreen() {
           variant="ghost"
           icon="google"
           full
-          onPress={() => signInWithOAuth('google')}
+          onPress={() => handleOAuth('google')}
         />
-        <View style={styles.gap}/>
-        <Button
-          label="Continue with Apple"
-          variant="ghost"
-          icon="apple"
-          full
-          onPress={() => signInWithOAuth('apple')}
-        />
+        {Platform.OS === 'ios' && (
+          <>
+            <View style={styles.gap}/>
+            <Button
+              label="Continue with Apple"
+              variant="ghost"
+              icon="apple"
+              full
+              onPress={() => handleOAuth('apple')}
+            />
+          </>
+        )}
 
         <Text style={styles.legal}>
           By creating an account you agree to our Terms of Service and Privacy Policy.
@@ -129,7 +200,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 28, paddingTop: 72, justifyContent: 'center' },
   wordmark: { fontFamily: FONTS.serif, fontSize: 22, color: COLORS.clay, marginBottom: 8 },
   headline: { fontFamily: FONTS.serif, fontSize: 34, color: COLORS.ink, marginBottom: 4 },
-  sub: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink3, marginBottom: 28 },
+  sub: { fontFamily: FONTS.sans, fontSize: 14, color: COLORS.ink3, marginBottom: 28, lineHeight: 21 },
   errorText: {
     fontFamily: FONTS.sans, fontSize: 13, color: COLORS.clay,
     marginBottom: 12, backgroundColor: COLORS.claySoft,
@@ -141,7 +212,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: RADII.r2, paddingHorizontal: 14, paddingVertical: 12,
   },
-  input: { fontFamily: FONTS.sans, fontSize: 15, color: COLORS.ink },
+  input: {
+    flex: 1, fontFamily: FONTS.sans, fontSize: 15, color: COLORS.ink,
+    backgroundColor: 'transparent',
+  },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
   divider: { flex: 1, height: 1, backgroundColor: COLORS.borderSoft },
   dividerText: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3 },
@@ -152,5 +226,5 @@ const styles = StyleSheet.create({
   },
   switchRow: { alignItems: 'center', marginTop: 16 },
   switchText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink3 },
-  switchLink: { color: COLORS.clay, fontWeight: '600' },
+  switchLink: { fontFamily: fontFor('600'), color: COLORS.clay },
 });

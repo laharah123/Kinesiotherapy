@@ -8,7 +8,7 @@ import { Tag } from '@/components/ui/Tag';
 import { Glyph } from '@/lib/glyphs';
 import { Icon } from '@/lib/icons';
 import { useIntakeStore } from '@/lib/store/intake';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 const FILTER_LABELS: Record<BodyArea, string> = {
   back: 'Back', neck: 'Neck', shoulder: 'Shoulder', wrist: 'Wrist',
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   filterChipActive: { backgroundColor: COLORS.claySoft, borderColor: COLORS.clay },
   filterChipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink2 },
-  filterChipTextActive: { color: COLORS.clay, fontWeight: '600' },
+  filterChipTextActive: { fontFamily: fontFor('600'), color: COLORS.clay },
 
   list: { paddingHorizontal: 16, gap: 10, paddingBottom: 20 },
   card: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: COLORS.clay, backgroundColor: COLORS.claySoft },
   cardLeft: {},
   cardBody: { flex: 1, gap: 6 },
-  cardName: { fontFamily: FONTS.sans, fontSize: 15, fontWeight: '600', color: COLORS.ink },
+  cardName: { fontFamily: fontFor('600'), fontSize: 15, color: COLORS.ink },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTime: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3 },
   empty: {

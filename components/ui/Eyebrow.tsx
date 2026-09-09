@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
-import { COLORS, FONTS } from '@/lib/tokens';
+import { COLORS, FONTS, fontFor } from '@/lib/tokens';
 
 interface EyebrowProps {
   children: React.ReactNode;
@@ -31,9 +31,8 @@ export function H3({ children, style }: { children: React.ReactNode; style?: Sty
 
 const styles = StyleSheet.create({
   base: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('700'),
     fontSize: 11,
-    fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: COLORS.ink3,

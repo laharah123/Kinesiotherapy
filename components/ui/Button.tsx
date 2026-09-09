@@ -9,7 +9,7 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
-import { COLORS, RADII, FONTS } from '@/lib/tokens';
+import { COLORS, RADII, fontFor } from '@/lib/tokens';
 import { Icon } from '@/lib/icons';
 import type { IconName } from '@/lib/tokens';
 
@@ -112,9 +112,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('600'),
     fontSize: 15,
-    fontWeight: '600',
   },
   labelPrimary: {
     color: '#fff',

@@ -6,15 +6,16 @@
  * No mocks are required — all assertions operate on the exported constants.
  */
 
-import { EXERCISES, EXERCISE_MAP } from '@/data/exercises';
-import type { Exercise } from '@/data/exercises';
+import { EXERCISES, EXERCISE_MAP, EXERCISE_ANIMATIONS } from '@/data/exercises';
+import { CONDITIONS, CONDITION_MAP } from '@/data/conditions';
+import { ANIMATIONS, ANIMATION_KINDS } from '@/components/figures/AnimatedFigure';
+import { BODY_MAP_REGIONS } from '@/components/figures/BodyMap';
 
 // ---------------------------------------------------------------------------
 // Type constants for enum validation
 // ---------------------------------------------------------------------------
 
 const VALID_CATEGORIES = ['mobility', 'strength', 'stretch', 'breathing'] as const;
-type ValidCategory = typeof VALID_CATEGORIES[number];
 
 const VALID_FIGURE_TYPES = [
   'bridge', 'supine', 'quadruped', 'standing',
@@ -28,8 +29,8 @@ const VALID_INTENSITY_TIERS = [1, 2, 3] as const;
 // ---------------------------------------------------------------------------
 
 describe('EXERCISES collection', () => {
-  it('exports at least 49 exercises', () => {
-    expect(EXERCISES.length).toBeGreaterThanOrEqual(49);
+  it('exports at least 58 exercises so daily sessions stop repeating', () => {
+    expect(EXERCISES.length).toBeGreaterThanOrEqual(58);
   });
 
   it('contains no duplicate IDs', () => {
@@ -77,6 +78,19 @@ describe('each Exercise has required fields', () => {
 
   test.each(EXERCISES)('$id — figureType is one of the 8 valid posture types', ({ id, figureType }) => {
     expect(VALID_FIGURE_TYPES as readonly string[]).toContain(figureType);
+  });
+
+  test.each(EXERCISES)('$id — has an animation that the figure knows how to play', ({ id, animation }) => {
+    expect(typeof animation).toBe('string');
+    expect(ANIMATION_KINDS).toContain(animation);
+    expect(ANIMATIONS[animation]).toBeDefined();
+  });
+
+  test.each(EXERCISES)('$id — every bodyRegion is a real BodyMap region', ({ id, bodyRegions }) => {
+    const valid = new Set([...BODY_MAP_REGIONS.front, ...BODY_MAP_REGIONS.back]);
+    for (const region of bodyRegions) {
+      expect(valid.has(region as never)).toBe(true);
+    }
   });
 
   test.each(EXERCISES)('$id — instructions is a 4-element tuple of non-empty strings', ({ id, instructions }) => {
@@ -130,24 +144,58 @@ describe('Exercise numeric defaults', () => {
 // ---------------------------------------------------------------------------
 
 describe('Tier distribution', () => {
-  it('has tier-1 exercises (always accessible without promotion)', () => {
-    const tier1 = EXERCISES.filter((ex) => ex.intensityTier === 1);
-    expect(tier1.length).toBeGreaterThan(0);
+  const count = (t: 1 | 2 | 3) => EXERCISES.filter((ex) => ex.intensityTier === t).length;
+
+  it('is rebalanced roughly 24 / 18 / 8 rather than piling everything into tier 1', () => {
+    expect(count(1)).toBeGreaterThanOrEqual(22);
+    expect(count(1)).toBeLessThanOrEqual(34);
+    expect(count(2)).toBeGreaterThanOrEqual(16);
+    expect(count(2)).toBeLessThanOrEqual(26);
+    expect(count(3)).toBeGreaterThanOrEqual(6);
+    expect(count(3)).toBeLessThanOrEqual(13);
   });
 
-  it('has tier-2 exercises', () => {
-    const tier2 = EXERCISES.filter((ex) => ex.intensityTier === 2);
-    expect(tier2.length).toBeGreaterThan(0);
+  it('accounts for every exercise', () => {
+    expect(count(1) + count(2) + count(3)).toBe(EXERCISES.length);
   });
 
-  it('has tier-3 exercises', () => {
-    const tier3 = EXERCISES.filter((ex) => ex.intensityTier === 3);
-    expect(tier3.length).toBeGreaterThan(0);
+  it('keeps tier 3 a minority', () => {
+    expect(count(3)).toBeLessThan(EXERCISES.length / 2);
   });
 
-  it('most exercises are tier-1 or tier-2 (tier-3 should be a minority)', () => {
-    const tier3 = EXERCISES.filter((ex) => ex.intensityTier === 3);
-    expect(tier3.length).toBeLessThan(EXERCISES.length / 2);
+  it('pins the anchor exercises the planner and its tests rely on', () => {
+    expect(EXERCISE_MAP['pelvic-tilt'].intensityTier).toBe(1);
+    expect(EXERCISE_MAP['glute-bridge'].intensityTier).toBe(2);
+    expect(EXERCISE_MAP['bird-dog'].intensityTier).toBe(3);
+    expect(EXERCISE_MAP['eccentric-calf-raise'].intensityTier).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Animation coverage
+// ---------------------------------------------------------------------------
+
+describe('Animation coverage', () => {
+  it('EXERCISE_ANIMATIONS mirrors the animation on every exercise', () => {
+    expect(Object.keys(EXERCISE_ANIMATIONS).length).toBe(EXERCISES.length);
+    for (const ex of EXERCISES) {
+      expect(EXERCISE_ANIMATIONS[ex.id]).toBe(ex.animation);
+    }
+  });
+
+  it('uses a wide spread of animations rather than a handful of postures', () => {
+    const distinct = new Set(EXERCISES.map((ex) => ex.animation));
+    expect(distinct.size).toBeGreaterThanOrEqual(26);
+  });
+
+  it('never maps more than a quarter of the library onto one animation', () => {
+    const tally = new Map<string, number>();
+    for (const ex of EXERCISES) tally.set(ex.animation, (tally.get(ex.animation) ?? 0) + 1);
+    for (const [kind, n] of tally) {
+      if (n > EXERCISES.length / 4) {
+        throw new Error(`${kind} is used by ${n} of ${EXERCISES.length} exercises`);
+      }
+    }
   });
 });
 
@@ -192,7 +240,26 @@ describe('Category coverage', () => {
 // ---------------------------------------------------------------------------
 
 describe('conditionIds field', () => {
-  test.each(EXERCISES)('$id — conditionIds is an array', ({ id, conditionIds }) => {
+  test.each(EXERCISES)('$id — conditionIds is a non-empty array', ({ id, conditionIds }) => {
     expect(Array.isArray(conditionIds)).toBe(true);
+    expect(conditionIds.length).toBeGreaterThan(0);
+  });
+
+  test.each(EXERCISES)('$id — every conditionId resolves to a real condition', ({ id, conditionIds }) => {
+    for (const cid of conditionIds) {
+      expect(CONDITION_MAP[cid]).toBeDefined();
+    }
+  });
+
+  test.each(EXERCISES)('$id — the referenced conditions list this exercise back', ({ id, conditionIds }) => {
+    for (const cid of conditionIds) {
+      expect(CONDITION_MAP[cid].exerciseIds).toContain(id);
+    }
+  });
+
+  it('has no orphan exercise: every exercise belongs to at least one condition pool', () => {
+    const pooled = new Set(CONDITIONS.flatMap((c) => c.exerciseIds));
+    const orphans = EXERCISES.filter((ex) => !pooled.has(ex.id)).map((ex) => ex.id);
+    expect(orphans).toEqual([]);
   });
 });

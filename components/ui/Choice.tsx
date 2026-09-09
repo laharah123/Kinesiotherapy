@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import { COLORS, RADII, FONTS } from '@/lib/tokens';
+import { COLORS, RADII, FONTS, fontFor } from '@/lib/tokens';
 import { Icon } from '@/lib/icons';
 
 interface ChoiceProps {
@@ -55,9 +55,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   value: {
-    fontFamily: FONTS.sans,
+    fontFamily: fontFor('600'),
     fontSize: 15,
-    fontWeight: '600',
     color: COLORS.ink,
   },
   valueSelected: {

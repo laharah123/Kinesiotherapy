@@ -32,9 +32,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'clay',
     bodyRegions: ['lowBack', 'leftHip', 'rightHip'],
     exerciseIds: [
-      'pelvic-tilt', 'cat-cow', 'childs-pose', 'standing-breath',
-      'knee-to-chest', 'glute-bridge', 'bird-dog', 'dead-bug',
-      'hip-flexor-stretch',
+      'pelvic-tilt', 'cat-cow', 'childs-pose',
+      'knee-to-chest', 'standing-breath', 'heel-slides',
+      'glute-bridge', 'dead-bug', 'bird-dog',
+      'hip-flexor-stretch', 'standing-hip-hinge', 'diaphragmatic-breathing',
     ],
     routineTemplate: {
       title: 'Lower back relief',
@@ -55,7 +56,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'piriformis-stretch', 'sciatic-nerve-floss', 'hamstring-stretch-supine',
       'glute-bridge', 'knee-to-chest', 'figure-4-stretch',
-      'cat-cow', 'childs-pose',
+      'cat-cow', 'childs-pose', 'pelvic-tilt',
+      'clamshell', 'standing-hip-hinge', 'diaphragmatic-breathing',
     ],
     routineTemplate: {
       title: 'Sciatica recovery',
@@ -76,7 +78,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'mckenzie-extension', 'cat-cow', 'childs-pose',
       'knee-to-chest', 'bird-dog', 'dead-bug',
-      'pelvic-tilt',
+      'pelvic-tilt', 'standing-breath', 'heel-slides',
+      'sciatic-nerve-floss', 'diaphragmatic-breathing', 'standing-hip-hinge',
     ],
     routineTemplate: {
       title: 'Disc rehabilitation',
@@ -97,7 +100,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'chin-tuck', 'cervical-retraction', 'levator-scapulae-stretch',
       'deep-neck-flexor', 'thoracic-extension-foam', 'neck-side-stretch',
-      'doorway-chest-stretch',
+      'doorway-chest-stretch', 'neck-rotation', 'shoulder-rolls',
+      'scapular-squeeze', 'seated-thoracic-rotation', 'wall-angels',
     ],
     routineTemplate: {
       title: 'Neck & posture reset',
@@ -117,8 +121,9 @@ export const CONDITIONS: Condition[] = [
     bodyRegions: ['leftShoulder', 'rightShoulder'],
     exerciseIds: [
       'pendulum', 'codman', 'wand-external-rotation',
-      'posterior-capsule-stretch', 'band-external-rotation',
-      'doorway-chest-stretch',
+      'posterior-capsule-stretch', 'band-external-rotation', 'doorway-chest-stretch',
+      'shoulder-rolls', 'levator-scapulae-stretch', 'scapular-squeeze',
+      'wall-angels', 'thoracic-extension-foam',
     ],
     routineTemplate: {
       title: 'Shoulder mobility',
@@ -137,9 +142,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'ochre',
     bodyRegions: ['leftShoulder', 'rightShoulder', 'upperBack'],
     exerciseIds: [
-      'band-external-rotation', 'posterior-capsule-stretch',
-      'prone-y-t-w', 'doorway-chest-stretch',
-      'wall-angels', 'pendulum',
+      'band-external-rotation', 'posterior-capsule-stretch', 'prone-y-t-w',
+      'doorway-chest-stretch', 'wall-angels', 'pendulum',
+      'wand-external-rotation', 'scapular-squeeze', 'shoulder-rolls',
+      'thoracic-extension-foam', 'codman',
     ],
     routineTemplate: {
       title: 'Rotator cuff rebuild',
@@ -158,9 +164,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'ochre',
     bodyRegions: ['leftShoulder', 'rightShoulder'],
     exerciseIds: [
-      'posterior-capsule-stretch', 'band-external-rotation',
-      'prone-y-t-w', 'doorway-chest-stretch',
-      'wall-angels',
+      'posterior-capsule-stretch', 'band-external-rotation', 'prone-y-t-w',
+      'doorway-chest-stretch', 'wall-angels', 'scapular-squeeze',
+      'shoulder-rolls', 'pendulum', 'thoracic-extension-foam',
+      'seated-thoracic-rotation', 'wand-external-rotation',
     ],
     routineTemplate: {
       title: 'Shoulder decompression',
@@ -179,8 +186,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'clay',
     bodyRegions: ['leftElbow', 'rightElbow'],
     exerciseIds: [
-      'wrist-flexor-stretch', 'eccentric-wrist-extension',
-      'median-nerve-glide', 'tendon-gliding',
+      'wrist-flexor-stretch', 'eccentric-wrist-extension', 'median-nerve-glide',
+      'tendon-gliding', 'shoulder-rolls', 'scapular-squeeze',
+      'chin-tuck', 'posterior-capsule-stretch', 'doorway-chest-stretch',
+      'band-external-rotation',
     ],
     routineTemplate: {
       title: 'Elbow tendon rehab',
@@ -199,8 +208,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'neutral',
     bodyRegions: ['leftWrist', 'rightWrist'],
     exerciseIds: [
-      'median-nerve-glide', 'tendon-gliding',
-      'wrist-flexor-stretch', 'chin-tuck',
+      'median-nerve-glide', 'tendon-gliding', 'wrist-flexor-stretch',
+      'chin-tuck', 'neck-rotation', 'neck-side-stretch',
+      'shoulder-rolls', 'scapular-squeeze', 'cervical-retraction',
+      'doorway-chest-stretch',
     ],
     routineTemplate: {
       title: 'Wrist nerve relief',
@@ -221,6 +232,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'hip-flexor-stretch', 'clamshell', 'hip-abduction-sidelying',
       'seated-hip-rotation', 'figure-4-stretch', 'it-band-foam-roll',
+      'glute-bridge', 'standing-hip-hinge', 'piriformis-stretch',
+      'standing-quad-stretch', 'single-leg-balance', 'mini-squat',
     ],
     routineTemplate: {
       title: 'Hip mobility & strength',
@@ -241,6 +254,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'vmo-terminal-knee-ext', 'straight-leg-raise', 'mini-squat',
       'single-leg-balance', 'clamshell', 'it-band-foam-roll',
+      'glute-bridge', 'standing-quad-stretch', 'seated-hamstring-stretch',
+      'hip-flexor-stretch', 'calf-stretch-step', 'ankle-dorsiflexion-lunge',
     ],
     routineTemplate: {
       title: 'Knee strength & stability',
@@ -261,6 +276,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'vmo-terminal-knee-ext', 'clamshell', 'eccentric-step-down',
       'it-band-foam-roll', 'hip-abduction-sidelying', 'straight-leg-raise',
+      'glute-bridge', 'standing-quad-stretch', 'mini-squat',
+      'hip-flexor-stretch', 'single-leg-balance', 'seated-hamstring-stretch',
     ],
     routineTemplate: {
       title: 'Patella tracking reset',
@@ -279,8 +296,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'clay',
     bodyRegions: ['leftKnee', 'rightKnee'],
     exerciseIds: [
-      'plantar-fascia-stretch', 'calf-stretch-step',
-      'eccentric-calf-raise', 'single-leg-balance', 'alphabet-ankle',
+      'plantar-fascia-stretch', 'calf-stretch-step', 'eccentric-calf-raise',
+      'single-leg-balance', 'alphabet-ankle', 'ankle-dorsiflexion-lunge',
+      'seated-hamstring-stretch', 'standing-quad-stretch', 'hip-abduction-sidelying',
+      'glute-bridge',
     ],
     routineTemplate: {
       title: 'Foot & fascia relief',
@@ -299,8 +318,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'clay',
     bodyRegions: ['leftAnkle', 'rightAnkle'],
     exerciseIds: [
-      'eccentric-calf-raise', 'calf-stretch-step',
-      'single-leg-balance', 'alphabet-ankle',
+      'eccentric-calf-raise', 'calf-stretch-step', 'single-leg-balance',
+      'alphabet-ankle', 'ankle-dorsiflexion-lunge', 'plantar-fascia-stretch',
+      'seated-hamstring-stretch', 'glute-bridge', 'standing-hip-hinge',
+      'hip-abduction-sidelying',
     ],
     routineTemplate: {
       title: 'Achilles load programme',
@@ -319,8 +340,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'sage',
     bodyRegions: ['leftAnkle', 'rightAnkle'],
     exerciseIds: [
-      'alphabet-ankle', 'single-leg-balance',
-      'eccentric-calf-raise', 'calf-stretch-step',
+      'alphabet-ankle', 'single-leg-balance', 'eccentric-calf-raise',
+      'calf-stretch-step', 'ankle-dorsiflexion-lunge', 'plantar-fascia-stretch',
+      'clamshell', 'hip-abduction-sidelying', 'glute-bridge',
+      'mini-squat',
     ],
     routineTemplate: {
       title: 'Ankle stability rebuild',
@@ -339,9 +362,10 @@ export const CONDITIONS: Condition[] = [
     tone: 'neutral',
     bodyRegions: ['upperBack', 'midBack', 'lowBack'],
     exerciseIds: [
-      'diaphragmatic-breathing', 'seated-thoracic-rotation',
-      'wall-angels', 'hip-abduction-sidelying',
-      'thoracic-extension-foam', 'cat-cow',
+      'diaphragmatic-breathing', 'seated-thoracic-rotation', 'wall-angels',
+      'hip-abduction-sidelying', 'thoracic-extension-foam', 'cat-cow',
+      'bird-dog', 'childs-pose', 'thoracic-rotation-foam',
+      'standing-breath', 'side-plank-knees', 'thread-the-needle',
     ],
     routineTemplate: {
       title: 'Spinal balance & breath',
@@ -361,7 +385,10 @@ export const CONDITIONS: Condition[] = [
     bodyRegions: ['lowerAbdomen', 'leftHip', 'rightHip'],
     exerciseIds: [
       'kegel', 'diaphragmatic-breathing', 'heel-slides',
-      'hip-flexor-stretch', 'figure-4-stretch',
+      'hip-flexor-stretch', 'figure-4-stretch', 'pelvic-tilt',
+      'glute-bridge', 'clamshell', 'childs-pose',
+      'standing-breath',
+      'glute-bridge-march',
     ],
     routineTemplate: {
       title: 'Pelvic floor restore',
@@ -380,8 +407,11 @@ export const CONDITIONS: Condition[] = [
     tone: 'sage',
     bodyRegions: ['upperAbdomen', 'lowerAbdomen'],
     exerciseIds: [
-      'diaphragmatic-breathing', 'heel-slides', 'dead-bug', 'kegel',
-      'cat-cow', 'pelvic-tilt',
+      'diaphragmatic-breathing', 'heel-slides', 'dead-bug',
+      'kegel', 'cat-cow', 'pelvic-tilt',
+      'glute-bridge', 'childs-pose', 'standing-breath',
+      'side-plank-knees',
+      'glute-bridge-march',
     ],
     routineTemplate: {
       title: 'Core reconnection',
@@ -402,7 +432,8 @@ export const CONDITIONS: Condition[] = [
     exerciseIds: [
       'chin-tuck', 'thoracic-extension-foam', 'doorway-chest-stretch',
       'seated-thoracic-rotation', 'hip-flexor-stretch', 'wall-angels',
-      'levator-scapulae-stretch',
+      'levator-scapulae-stretch', 'neck-rotation', 'shoulder-rolls',
+      'scapular-squeeze', 'cat-cow', 'standing-hip-hinge',
     ],
     routineTemplate: {
       title: 'Desk posture reset',
@@ -422,8 +453,9 @@ export const CONDITIONS: Condition[] = [
     bodyRegions: ['upperBack', 'chest', 'leftShoulder', 'rightShoulder'],
     exerciseIds: [
       'prone-y-t-w', 'wall-angels', 'doorway-chest-stretch',
-      'thoracic-extension-foam', 'thoracic-rotation-foam',
-      'seated-thoracic-rotation',
+      'thoracic-extension-foam', 'thoracic-rotation-foam', 'seated-thoracic-rotation',
+      'scapular-squeeze', 'shoulder-rolls', 'chin-tuck',
+      'thread-the-needle', 'levator-scapulae-stretch',
     ],
     routineTemplate: {
       title: 'Upper back opening',

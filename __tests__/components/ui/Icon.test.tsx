@@ -1,6 +1,18 @@
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react-native';
 import { Icon } from '@/lib/icons';
+import type { IconName } from '@/lib/tokens';
+
+const ALL_ICON_NAMES: IconName[] = [
+  'back', 'close', 'menu', 'more', 'search',
+  'home', 'plan', 'progress', 'profile',
+  'play', 'pause', 'next', 'check', 'plus',
+  'flame', 'clock', 'calendar', 'bell', 'chevron',
+  'sparkle', 'eye', 'lock', 'mail', 'google', 'apple',
+  'arrowRight', 'pencil', 'heart', 'shield', 'bolt', 'redo',
+  'tap', 'hand', 'volume', 'volumeOff', 'info', 'warning',
+  'trash', 'externalLink', 'refresh',
+];
 
 describe('Icon', () => {
   it('renders the bare Svg when no onPress / style is given', () => {
@@ -64,15 +76,27 @@ describe('Icon', () => {
     expect(flat.transform).toEqual([{ scaleX: -1 }]);
   });
 
-  it('renders every icon name without crashing', () => {
-    const names = ['back', 'close', 'menu', 'more', 'search', 'home', 'plan', 'progress',
-      'profile', 'play', 'pause', 'next', 'check', 'plus', 'flame', 'clock', 'calendar',
-      'bell', 'chevron', 'sparkle', 'eye', 'lock', 'mail', 'arrowRight', 'pencil',
-      'heart', 'shield', 'bolt', 'redo', 'google', 'apple'] as const;
-
-    names.forEach((name) => {
-      const { toJSON } = render(<Icon name={name} />);
-      expect(toJSON()).toBeTruthy();
-    });
+  it.each(ALL_ICON_NAMES)('renders the "%s" icon without crashing', (name) => {
+    const { toJSON } = render(<Icon name={name} />);
+    expect(toJSON()).toBeTruthy();
   });
+
+  it.each(['tap', 'hand', 'volume', 'volumeOff', 'info', 'warning', 'trash', 'externalLink', 'refresh'] as IconName[])(
+    '"%s" draws its own artwork rather than falling through to the default circle',
+    (name) => {
+      const drawn = JSON.stringify(render(<Icon name={name} />).toJSON());
+      const fallback = JSON.stringify(render(<Icon name={'not-an-icon' as IconName} />).toJSON());
+      expect(drawn).not.toEqual(fallback);
+    },
+  );
+
+  it.each(ALL_ICON_NAMES.filter((n) => n !== 'google' && n !== 'apple'))(
+    '"%s" keeps the shared 1.7 round-cap stroke style',
+    (name) => {
+      const svg = render(<Icon name={name} />).getByTestId('Svg');
+      expect(svg.props.strokeWidth).toBe(1.7);
+      expect(svg.props.strokeLinecap).toBe('round');
+      expect(svg.props.strokeLinejoin).toBe('round');
+    },
+  );
 });

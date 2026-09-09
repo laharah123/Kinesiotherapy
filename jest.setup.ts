@@ -1,8 +1,78 @@
-// Reanimated
+// Reanimated.
+// The mock shipped with the package re-exports the real entry point, which
+// needs the native module and throws under Jest, so this is a self-contained
+// stand-in: shared values are plain boxes and every animation helper resolves
+// immediately to its target value.
 jest.mock('react-native-reanimated', () => {
-  const mock = require('react-native-reanimated/mock');
-  mock.default.call = () => {};
-  return mock;
+  const React = require('react');
+  const RN = require('react-native');
+
+  const NOOP = () => {};
+  const ID = <T,>(v: T) => v;
+  const CALL = <T,>(fn: () => T) => fn();
+
+  const createAnimatedComponent = (Component: any) => {
+    const Wrapped = React.forwardRef((props: any, ref: any) => {
+      const { animatedProps, ...rest } = props ?? {};
+      return React.createElement(Component, { ...rest, ...(animatedProps ?? {}), ref });
+    });
+    Wrapped.displayName = 'Animated(Component)';
+    return Wrapped;
+  };
+
+  const Easing = {
+    linear: ID, ease: ID, quad: ID, cubic: ID, sin: ID, ircle: ID,
+    circle: ID, exp: ID, bounce: ID, elastic: () => ID, back: () => ID,
+    poly: () => ID, bezier: () => ({ factory: () => ID }),
+    in: ID, out: ID, inOut: ID,
+  };
+
+  const AnimatedDefault: any = {
+    createAnimatedComponent,
+    View: RN.View,
+    Text: RN.Text,
+    Image: RN.Image,
+    ScrollView: RN.ScrollView,
+    call: NOOP,
+  };
+
+  return {
+    __esModule: true,
+    default: AnimatedDefault,
+    createAnimatedComponent,
+    Easing,
+    Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
+    useSharedValue: (init: any) => ({ value: init, get: () => init, set: NOOP }),
+    useDerivedValue: (processor: () => any) => ({ value: processor() }),
+    useAnimatedProps: CALL,
+    useAnimatedStyle: CALL,
+    useAnimatedRef: () => ({ current: null }),
+    useAnimatedReaction: NOOP,
+    useReducedMotion: () => false,
+    useFrameCallback: () => ({ setActive: NOOP, isActive: false }),
+    cancelAnimation: NOOP,
+    withTiming: (to: any) => to,
+    withSpring: (to: any) => to,
+    withDelay: (_ms: number, next: any) => next,
+    withSequence: (...steps: any[]) => steps[steps.length - 1],
+    withRepeat: ID,
+    runOnJS: (fn: any) => fn,
+    runOnUI: (fn: any) => fn,
+    interpolate: (v: number, input: number[], output: number[]) => {
+      if (!input.length || !output.length) return v;
+      if (v <= input[0]) return output[0];
+      const last = input.length - 1;
+      if (v >= input[last]) return output[last];
+      for (let i = 1; i <= last; i++) {
+        if (v <= input[i]) {
+          const t = (v - input[i - 1]) / (input[i] - input[i - 1]);
+          return output[i - 1] + (output[i] - output[i - 1]) * t;
+        }
+      }
+      return output[last];
+    },
+    interpolateColor: (_v: number, _i: number[], output: string[]) => output[0],
+  };
 });
 
 // react-native-svg — replace every export with a plain View/no-op
@@ -78,7 +148,11 @@ jest.mock('@/lib/supabase', () => ({
   },
   fetchProfile:             jest.fn(),
   fetchSubscription:        jest.fn(),
-  createTrialSubscription:  jest.fn(),
+  createSession:            jest.fn().mockResolvedValue({ id: 'session-test' }),
+  localDateString:          (d: Date = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+  isSupabaseConfigured:     true,
+  sendPasswordReset:        jest.fn(),
+  updatePlanAdaptation:     jest.fn(),
   savePlan:                 jest.fn(),
   fetchActivePlan:          jest.fn(),
   fetchWeeklyPain:          jest.fn().mockResolvedValue([0,0,0,0,0,0,0]),
@@ -102,6 +176,12 @@ jest.mock('@/lib/revenuecat', () => ({
   addCustomerInfoListener:  jest.fn().mockReturnValue(jest.fn()),
   getCustomerInfo:          jest.fn(),
   extractSubscriptionStatus: jest.fn().mockReturnValue({ isActive: false, planType: null, expiresAt: null }),
+  applyCustomerInfoToStore: jest.fn().mockReturnValue(false),
+  isPurchasesConfigured:    jest.fn().mockReturnValue(false),
+  resetRevenueCatUser:      jest.fn(),
+  fetchOffering:            jest.fn().mockResolvedValue(null),
+  STORE_NAME:               'App Store',
+  MANAGE_SUBSCRIPTION_URL:  'https://apps.apple.com/account/subscriptions',
 }));
 
 // Silence act() warnings in store tests

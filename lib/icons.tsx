@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { COLORS } from './tokens';
 import type { IconName } from './tokens';
 
@@ -164,6 +164,84 @@ function IconGlyph({ name, size = 22, color = COLORS.ink, strokeWidth = 1.7 }: I
 
     case 'bolt':
       return <Svg {...p}><Path d="M13 3L5 14h6l-1 7 8-11h-6z"/></Svg>;
+
+    case 'tap':
+      return (
+        <Svg {...p}>
+          <Path d="M12 4v5M6.4 6.4l3 3M4 12h5"/>
+          <Path d="M12.5 12.5l7 2.6-3.1 1.3-1.3 3.1z"/>
+        </Svg>
+      );
+
+    case 'hand':
+      return (
+        <Svg {...p}>
+          <Path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11"/>
+          <Path d="M12 10.5V4.8a1.5 1.5 0 0 1 3 0V11"/>
+          <Path d="M15 11V7.5a1.5 1.5 0 0 1 3 0V15a5 5 0 0 1-5 5h-1.6a4 4 0 0 1-3-1.4L6 14.7a1.5 1.5 0 0 1 2.2-2L9 13.6V11"/>
+        </Svg>
+      );
+
+    case 'volume':
+      return (
+        <Svg {...p}>
+          <Path d="M5 9.5h3l4-3.5v12l-4-3.5H5z"/>
+          <Path d="M16 9.2a4 4 0 0 1 0 5.6M18.6 6.6a7.5 7.5 0 0 1 0 10.8"/>
+        </Svg>
+      );
+
+    case 'volumeOff':
+      return (
+        <Svg {...p}>
+          <Path d="M5 9.5h3l4-3.5v12l-4-3.5H5z"/>
+          <Path d="M16 10l4 4M20 10l-4 4"/>
+        </Svg>
+      );
+
+    case 'info':
+      return (
+        <Svg {...p}>
+          <Circle cx="12" cy="12" r="8.5"/>
+          <Path d="M12 11v5.5"/>
+          <Circle cx="12" cy="7.9" r="0.9" fill={color} stroke="none"/>
+        </Svg>
+      );
+
+    case 'warning':
+      return (
+        <Svg {...p}>
+          <Path d="M12 4.2L21 19.2H3z"/>
+          <Path d="M12 10v4"/>
+          <Circle cx="12" cy="16.6" r="0.9" fill={color} stroke="none"/>
+        </Svg>
+      );
+
+    case 'trash':
+      return (
+        <Svg {...p}>
+          <Path d="M4 7h16"/>
+          <Path d="M9.5 7V5.2h5V7"/>
+          <Path d="M6.3 7l.9 12.1a1.6 1.6 0 0 0 1.6 1.5h6.4a1.6 1.6 0 0 0 1.6-1.5L17.7 7"/>
+          <Path d="M10.4 11v6M13.6 11v6"/>
+        </Svg>
+      );
+
+    case 'externalLink':
+      return (
+        <Svg {...p}>
+          <Path d="M13.5 5H19v5.5"/>
+          <Path d="M19 5l-8 8"/>
+          <Path d="M18 14.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5"/>
+        </Svg>
+      );
+
+    case 'refresh':
+      return (
+        <Svg {...p}>
+          <Path d="M20 12a8 8 0 1 1-2.6-5.9"/>
+          <Path d="M20 4.5V10h-5.5"/>
+        </Svg>
+      );
 
     case 'redo':
       return (

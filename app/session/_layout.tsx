@@ -10,7 +10,7 @@ export default function SessionLayout() {
 
   useEffect(() => {
     if (!user) router.replace('/(auth)/login');
-  }, [user]);
+  }, [user, router]);
 
   return (
     <>
@@ -23,10 +23,8 @@ export default function SessionLayout() {
           animation: 'slide_from_right',
         }}
       >
+        {/* One screen: every session step is a phase inside it. */}
         <Stack.Screen name="[sessionId]"/>
-        <Stack.Screen name="rest"/>
-        <Stack.Screen name="pain-feedback"/>
-        <Stack.Screen name="complete"/>
       </Stack>
     </>
   );

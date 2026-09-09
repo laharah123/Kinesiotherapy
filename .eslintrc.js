@@ -9,6 +9,7 @@ module.exports = {
   extends: 'expo',
   ignorePatterns: [
     'node_modules/',
+    'supabase/functions/',
     '.expo/',
     'dist/',
     'web-build/',

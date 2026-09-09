@@ -67,14 +67,35 @@ export const SHADOWS = {
   },
 } as const;
 
-// Font family names — loaded via expo-font in _layout.tsx
+// Font family names, loaded via expo-font in app/_layout.tsx.
+// Only these families are registered, so nothing else may be referenced here.
 export const FONTS = {
-  serif: 'InstrumentSerif',
-  sans:  'Inter',
-  mono:  'JetBrainsMono',
+  serif:      'InstrumentSerif',
+  serifItalic: 'InstrumentSerif-Italic',
+  sans:       'Inter',
+  sansMedium: 'Inter-Medium',
+  sansSemi:   'Inter-SemiBold',
+  sansBold:   'Inter-Bold',
 } as const;
 
-// Type scale
+export type FontWeightToken = '400' | '500' | '600' | '700';
+
+/**
+ * Android ignores `fontWeight` when a custom `fontFamily` is set, so weight has
+ * to be expressed by picking the right loaded family. Always style text with
+ * `fontFamily: fontFor('600')` rather than `fontFamily: FONTS.sans` plus
+ * `fontWeight: '600'`.
+ */
+export function fontFor(weight: FontWeightToken): string {
+  switch (weight) {
+    case '500': return FONTS.sansMedium;
+    case '600': return FONTS.sansSemi;
+    case '700': return FONTS.sansBold;
+    default:    return FONTS.sans;
+  }
+}
+
+// Type scale. Weight lives in the family name, never in `fontWeight`.
 export const TYPE = {
   h1:      { fontFamily: FONTS.serif,  fontSize: 36, lineHeight: 42 },
   h2:      { fontFamily: FONTS.serif,  fontSize: 26, lineHeight: 32 },
@@ -82,13 +103,14 @@ export const TYPE = {
   counter: { fontFamily: FONTS.serif,  fontSize: 92, lineHeight: 92 },
   body:    { fontFamily: FONTS.sans,   fontSize: 14, lineHeight: 22 },
   bodyLg:  { fontFamily: FONTS.sans,   fontSize: 15.5, lineHeight: 24 },
+  bodyStrong: { fontFamily: FONTS.sansSemi, fontSize: 14, lineHeight: 22 },
   muted:   { fontFamily: FONTS.sans,   fontSize: 12.5, lineHeight: 18 },
   caption: { fontFamily: FONTS.sans,   fontSize: 11, lineHeight: 16 },
-  mono:    { fontFamily: FONTS.mono,   fontSize: 12 },
+  label:   { fontFamily: FONTS.sansMedium, fontSize: 12, lineHeight: 16 },
+  mono:    { fontFamily: FONTS.sans,   fontSize: 12 },
   eyebrow: {
-    fontFamily: FONTS.sans,
+    fontFamily: FONTS.sansBold,
     fontSize: 11,
-    fontWeight: '700' as const,
     letterSpacing: 1,
     textTransform: 'uppercase' as const,
   },
@@ -107,6 +129,7 @@ export const T = {
   ...RADII,
   shadows: SHADOWS,
   fonts: FONTS,
+  fontFor,
   type: TYPE,
   pricing: PRICING,
 } as const;
@@ -119,4 +142,6 @@ export type IconName =
   | 'play' | 'pause' | 'next' | 'check' | 'plus'
   | 'flame' | 'clock' | 'calendar' | 'bell' | 'chevron'
   | 'sparkle' | 'eye' | 'lock' | 'mail' | 'google' | 'apple'
-  | 'arrowRight' | 'pencil' | 'heart' | 'shield' | 'bolt' | 'redo';
+  | 'arrowRight' | 'pencil' | 'heart' | 'shield' | 'bolt' | 'redo'
+  | 'tap' | 'hand' | 'volume' | 'volumeOff' | 'info' | 'warning'
+  | 'trash' | 'externalLink' | 'refresh';

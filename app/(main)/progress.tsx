@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
 import { useAuthStore } from '@/lib/store/auth';
 import { useProgressStore } from '@/lib/store/progress';
 import { fetchWeeklyPain, fetchRecentSessions } from '@/lib/supabase';
+import { dayInitials, lastLocalDates, parseLocalDate, toLocalDateKey } from '@/lib/plans/dates';
 import { PainChart, RegionBar } from '@/components/charts/PainChart';
 import { BodyMap, type BodyRegion } from '@/components/figures/BodyMap';
 import { AppBar } from '@/components/ui/AppBar';
@@ -14,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Tag } from '@/components/ui/Tag';
 import { Glyph } from '@/lib/glyphs';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 function painLabel(avg: number): string {
   if (avg === 0)  return 'No data yet';
@@ -31,7 +29,6 @@ function painTagTone(avg: number): 'sage' | 'ochre' | 'clay' {
 }
 
 export default function ProgressScreen() {
-  const insets  = useSafeAreaInsets();
   const { profile, hasFullAccess } = useAuthStore();
   const {
     weeklyPain, regionActivity, recentSessions,
@@ -41,6 +38,12 @@ export default function ProgressScreen() {
 
   const nonZero = weeklyPain.filter((v) => v > 0);
   const avgPain = nonZero.length ? nonZero.reduce((a, b) => a + b, 0) / nonZero.length : 0;
+
+  // The headline counts sessions, not days with a session.
+  const weekDates    = lastLocalDates(7);
+  const weekWindow   = new Set(weekDates);
+  const weekSessions = recentSessions.filter((s) => weekWindow.has(toLocalDateKey(s.date))).length;
+  const labels       = dayInitials(weekDates);
 
   // Sort regions by activity percentage descending
   const regionEntries = Object.entries(regionActivity) as [BodyRegion, number][];
@@ -56,13 +59,16 @@ export default function ProgressScreen() {
         setWeeklyPain(pain);
         const sessions = await fetchRecentSessions(profile.id, 20);
         hydrate({
-          recentSessions: sessions.map((s: any) => ({
-            id:                   s.id,
-            date:                 s.date,
-            planTitle:            s.plans?.title ?? 'Session',
-            durationSecs:         s.duration_secs ?? 0,
-            avgPain:              s.avg_pain ?? 0,
-            exercisesCompleted:   0,
+          // fetchWeeklyPain above is authoritative for the chart, so only the
+          // history list is replaced here.
+          weeklyPain: pain,
+          recentSessions: sessions.map((row) => ({
+            id:                 row.id,
+            date:               toLocalDateKey(row.date),
+            planTitle:          row.plans?.title ?? 'Session',
+            durationSecs:       row.duration_secs ?? 0,
+            avgPain:            Number(row.avg_pain ?? 0),
+            exercisesCompleted: 0,
           })),
         });
       } catch { /* offline */ }
@@ -71,24 +77,24 @@ export default function ProgressScreen() {
   }, [profile?.id]);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <AppBar
-        title="Progress"
-        right={<Icon name="calendar" size={22} color={COLORS.ink}/>}
-      />
+    <View style={styles.root}>
+      {/* AppBar applies the top inset itself */}
+      <AppBar title="Progress"/>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Summary headline */}
         <Text style={styles.headline}>{painLabel(avgPain)}</Text>
-        {avgPain > 0 && (
+        {weekSessions > 0 && (
           <Text style={styles.subline}>
-            Based on your last {nonZero.length} session{nonZero.length !== 1 ? 's' : ''}.
+            Based on your last {weekSessions} session{weekSessions !== 1 ? 's' : ''}.
           </Text>
         )}
 
         {/* Pain chart */}
         <Card style={styles.chartCard}>
-          <PainChart data={weeklyPain} showTrend/>
+          {/* Pain runs 0 to 4. The labels prop is spread so this compiles
+              whether or not PainChart accepts it yet. */}
+          <PainChart data={weeklyPain} maxValue={4} showTrend {...({ labels } as object)}/>
         </Card>
 
         {/* Stats row */}
@@ -147,7 +153,7 @@ export default function ProgressScreen() {
           <View style={styles.historyList}>
             {recentSessions.slice(0, 8).map((s) => {
               const mins  = Math.round(s.durationSecs / 60);
-              const date  = new Date(s.date).toLocaleDateString('en-US', {
+              const date  = (parseLocalDate(s.date) ?? new Date()).toLocaleDateString(undefined, {
                 weekday: 'short', month: 'short', day: 'numeric',
               });
               return (
@@ -217,10 +223,9 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink3 },
 
   sectionLabel: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3,
-    marginBottom: 12,
-  },
+    marginBottom: 12 },
 
   heatmapCard: { marginBottom: 28, padding: 16 },
   heatmapInner: { flexDirection: 'row', gap: 20, alignItems: 'flex-start' },
@@ -234,7 +239,7 @@ const styles = StyleSheet.create({
   },
   historyLeft: { gap: 2 },
   historyDate: { fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink3 },
-  historyTitle: { fontFamily: FONTS.sans, fontSize: 14, fontWeight: '600', color: COLORS.ink },
+  historyTitle: { fontFamily: fontFor('600'), fontSize: 14, color: COLORS.ink },
   historyRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   historyDuration: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3 },
 

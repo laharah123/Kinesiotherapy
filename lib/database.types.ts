@@ -92,6 +92,7 @@ export type Database = {
       plans: {
         Row: {
           active: boolean;
+          completed_days: number[];
           condition_id: string | null;
           created_at: string;
           demotion_trigger: number;
@@ -99,14 +100,17 @@ export type Database = {
           effort: string;
           exercise_pool: string[];
           id: string;
+          last_completed_on: string | null;
           pain_ema: number;
           promotion_streak: number;
+          started_at: string;
           title: string;
           user_id: string;
           user_tier: number;
         };
         Insert: {
           active?: boolean;
+          completed_days?: number[];
           condition_id?: string | null;
           created_at?: string;
           demotion_trigger?: number;
@@ -114,14 +118,17 @@ export type Database = {
           effort?: string;
           exercise_pool?: string[];
           id?: string;
+          last_completed_on?: string | null;
           pain_ema?: number;
           promotion_streak?: number;
+          started_at?: string;
           title: string;
           user_id: string;
           user_tier?: number;
         };
         Update: {
           active?: boolean;
+          completed_days?: number[];
           condition_id?: string | null;
           created_at?: string;
           demotion_trigger?: number;
@@ -129,8 +136,10 @@ export type Database = {
           effort?: string;
           exercise_pool?: string[];
           id?: string;
+          last_completed_on?: string | null;
           pain_ema?: number;
           promotion_streak?: number;
+          started_at?: string;
           title?: string;
           user_id?: string;
           user_tier?: number;
@@ -194,6 +203,7 @@ export type Database = {
           avg_pain: number | null;
           completed: boolean;
           date: string;
+          day: number | null;
           duration_secs: number | null;
           id: string;
           plan_id: string;
@@ -203,6 +213,7 @@ export type Database = {
           avg_pain?: number | null;
           completed?: boolean;
           date?: string;
+          day?: number | null;
           duration_secs?: number | null;
           id?: string;
           plan_id: string;
@@ -212,6 +223,7 @@ export type Database = {
           avg_pain?: number | null;
           completed?: boolean;
           date?: string;
+          day?: number | null;
           duration_secs?: number | null;
           id?: string;
           plan_id?: string;

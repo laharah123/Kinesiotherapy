@@ -1,16 +1,56 @@
+import 'react-native-url-polyfill/auto';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+
 import type { Database } from '@/lib/database.types';
 
-const SUPABASE_URL     = process.env.EXPO_PUBLIC_SUPABASE_URL     ?? '';
+const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL     ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,   // not a web app
+/** True when both Supabase env vars are present. */
+export const isSupabaseConfigured = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
+
+if (!isSupabaseConfigured) {
+  // One clear warning instead of a crash at import time.
+  console.warn(
+    'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY ' +
+    'to your .env file, then restart the bundler. Sign in and data sync stay unavailable until then.',
+  );
+}
+
+// Placeholders keep createClient from throwing when the env vars are missing.
+export const supabase = createClient<Database>(
+  isSupabaseConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co',
+  isSupabaseConfigured ? SUPABASE_ANON_KEY : 'placeholder-anon-key',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,   // not a web app
+    },
   },
-});
+);
+
+// ─── Date helpers ──────────────────────────────────────────────────────────────
+
+/** YYYY-MM-DD for the device's local calendar day (not UTC). */
+export function localDateString(d: Date = new Date()): string {
+  const year  = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day   = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Local date, `days` days before/after `from`, as YYYY-MM-DD. */
+function localDateOffset(days: number, from: Date = new Date()): string {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setDate(d.getDate() + days);
+  return localDateString(d);
+}
 
 // ─── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -39,10 +79,81 @@ export async function signOut() {
   if (error) throw error;
 }
 
+/** Deep link Supabase redirects back to after an external auth flow. */
+export function authRedirectUrl(path = '/auth/callback'): string {
+  return Linking.createURL(path);
+}
+
+/** Pull key/value pairs out of both the query string and the hash fragment. */
+function parseAuthParams(url: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const withoutScheme = url.split('://').slice(1).join('://') || url;
+  const query    = withoutScheme.split('?')[1]?.split('#')[0];
+  const fragment = withoutScheme.split('#')[1];
+
+  for (const chunk of [query, fragment]) {
+    if (!chunk) continue;
+    for (const pair of chunk.split('&')) {
+      if (!pair) continue;
+      const idx = pair.indexOf('=');
+      const key = idx === -1 ? pair : pair.slice(0, idx);
+      const val = idx === -1 ? ''   : pair.slice(idx + 1);
+      out[decodeURIComponent(key)] = decodeURIComponent(val.replace(/\+/g, ' '));
+    }
+  }
+  return out;
+}
+
+/**
+ * Native OAuth: open the provider in an auth session browser, then turn the
+ * redirect back into a Supabase session.
+ *
+ * Handles both flows: an implicit redirect carries access/refresh tokens in the
+ * hash fragment, a PKCE redirect carries a `code` we exchange for a session.
+ * Returns null when the user dismissed the browser.
+ */
 export async function signInWithOAuth(provider: 'google' | 'apple') {
-  const { data, error } = await supabase.auth.signInWithOAuth({ provider });
+  const redirectTo = authRedirectUrl();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo, skipBrowserRedirect: true },
+  });
   if (error) throw error;
-  return data;
+  if (!data?.url) throw new Error('Could not start sign in. Please try again.');
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (!('url' in result) || typeof result.url !== 'string') return null;   // cancelled
+
+  const params = parseAuthParams(result.url);
+
+  if (params.error_description) throw new Error(params.error_description);
+  if (params.error) throw new Error(params.error);
+
+  if (params.code) {
+    const exchanged = await supabase.auth.exchangeCodeForSession(params.code);
+    if (exchanged.error) throw exchanged.error;
+    return exchanged.data.session;
+  }
+
+  if (params.access_token && params.refresh_token) {
+    const restored = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (restored.error) throw restored.error;
+    return restored.data.session;
+  }
+
+  throw new Error('Sign in did not complete. Please try again.');
+}
+
+/** Sends a password reset email pointing back into the app. */
+export async function sendPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: authRedirectUrl('/auth/reset'),
+  });
+  if (error) throw error;
 }
 
 // ─── Profile helpers ───────────────────────────────────────────────────────────
@@ -82,22 +193,6 @@ export async function fetchSubscription(userId: string) {
     .single();
   if (error && error.code !== 'PGRST116') throw error;   // PGRST116 = not found
   return data ?? null;
-}
-
-export async function createTrialSubscription(userId: string) {
-  const trialEndsAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .insert({
-      user_id: userId,
-      plan_type: null,
-      status: 'trialing',
-      trial_ends_at: trialEndsAt,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 // ─── Plan helpers ──────────────────────────────────────────────────────────────
@@ -148,10 +243,10 @@ export async function updatePlanAdaptation(planId: string, patch: {
 
 // ─── Session helpers ───────────────────────────────────────────────────────────
 
-export async function createSession(userId: string, planId: string) {
+export async function createSession(userId: string, planId: string, day?: number) {
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ user_id: userId, plan_id: planId, completed: false })
+    .insert({ user_id: userId, plan_id: planId, completed: false, ...(day != null ? { day } : {}) })
     .select()
     .single();
   if (error) throw error;
@@ -197,9 +292,9 @@ export async function fetchRecentSessions(userId: string, limit = 10) {
 
 // ─── Progress helpers ──────────────────────────────────────────────────────────
 
-/** Returns the last 7 days of avg_pain for a user */
+/** Returns the last 7 local calendar days of avg_pain for a user */
 export async function fetchWeeklyPain(userId: string): Promise<number[]> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  const sevenDaysAgo = localDateOffset(-6);
   const { data, error } = await supabase
     .from('sessions')
     .select('date, avg_pain')
@@ -216,7 +311,7 @@ export async function fetchWeeklyPain(userId: string): Promise<number[]> {
   });
 
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.now() - (6 - i) * 86_400_000).toISOString().slice(0, 10);
+    const d = localDateOffset(i - 6);
     return painByDate[d] ?? 0;
   });
 }

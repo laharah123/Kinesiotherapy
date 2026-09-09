@@ -64,7 +64,7 @@ function makeSession(painLevels: number[], tags: string[][] = []): CompletedSess
 
 /** Session with explicit per-exercise entries (richer than makeSession). */
 function makeSessionFor(
-  entries: Array<{ exerciseId: string; painLevel: number; feedbackTags?: string[] }>,
+  entries: { exerciseId: string; painLevel: number; feedbackTags?: string[] }[],
 ): CompletedSession {
   return {
     logs: entries.map(({ exerciseId, painLevel, feedbackTags = [] }) => ({
@@ -316,7 +316,7 @@ describe('generatePlan', () => {
 // ---------------------------------------------------------------------------
 
 describe('Schedule week pattern — 5 active + 2 rest per week', () => {
-  const cases: Array<[string, number]> = [
+  const cases: [string, number][] = [
     ['low-back-pain', 28],
     ['lumbar-disc', 42],
     ['tech-neck', 21],
@@ -924,9 +924,10 @@ describe('isExerciseUnlocked', () => {
     expect(isExerciseUnlocked('bird-dog', 3)).toBe(true);
   });
 
-  it('dead-bug (tier 2) is locked at tier 1, unlocked at tier 2', () => {
+  it('dead-bug (tier 3) is locked below tier 3', () => {
     expect(isExerciseUnlocked('dead-bug', 1)).toBe(false);
-    expect(isExerciseUnlocked('dead-bug', 2)).toBe(true);
+    expect(isExerciseUnlocked('dead-bug', 2)).toBe(false);
+    expect(isExerciseUnlocked('dead-bug', 3)).toBe(true);
   });
 
   it('chin-tuck (tier 1) is always accessible', () => {
@@ -1006,5 +1007,189 @@ describe('getSessionExercises', () => {
   it('returns an empty array for day 0 (1-based numbering)', () => {
     const plan = generatePlan(baseIntake);
     expect(getSessionExercises(plan, 0)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generatePlan — plan-level exclusions
+// ---------------------------------------------------------------------------
+
+describe('generatePlan — excludedExerciseIds', () => {
+  it('starts with no exclusions', () => {
+    expect(generatePlan(baseIntake).excludedExerciseIds).toEqual([]);
+  });
+
+  it('builds every day at the plan starting tier', () => {
+    const plan = generatePlan(baseIntake);
+    plan.schedule.filter((d) => !d.isRest).forEach((d) => {
+      d.exercises.forEach((pe) => {
+        expect(EXERCISE_MAP[pe.exerciseId].intensityTier).toBeLessThanOrEqual(plan.userTier);
+      });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// adaptSession — rotation by completed active days
+// ---------------------------------------------------------------------------
+
+describe('adaptSession — rotation offset', () => {
+  /** A pool of eight tier-1 exercises, big enough to rotate through. */
+  const bigPool = [
+    'pelvic-tilt', 'cat-cow', 'childs-pose', 'knee-to-chest',
+    'hip-flexor-stretch', 'chin-tuck', 'neck-side-stretch', 'wrist-flexor-stretch',
+  ];
+
+  function poolPlan(): Plan {
+    return { ...generatePlan(baseIntake), exercisePool: bigPool };
+  }
+
+  it('different completedActiveDays values produce different sessions', () => {
+    const plan = poolPlan();
+    const first  = adaptSession(plan, makeSession([2.0]), 1).nextExercises.map((e) => e.exerciseId);
+    const second = adaptSession(plan, makeSession([2.0]), 2).nextExercises.map((e) => e.exerciseId);
+    expect(first).not.toEqual(second);
+  });
+
+  it('the same completedActiveDays value is deterministic', () => {
+    const plan = poolPlan();
+    const a = adaptSession(plan, makeSession([2.0]), 3).nextExercises.map((e) => e.exerciseId);
+    const b = adaptSession(plan, makeSession([2.0]), 3).nextExercises.map((e) => e.exerciseId);
+    expect(a).toEqual(b);
+  });
+
+  it('does not simply repeat the session that was just completed', () => {
+    const plan = poolPlan();
+    const justDone = ['pelvic-tilt', 'cat-cow'];
+    const session = makeSessionFor(
+      justDone.map((exerciseId) => ({ exerciseId, painLevel: 2.0 })),
+    );
+    // Six per session out of eight, minus the two just done, still fills a day.
+    const nextIds = adaptSession(plan, session, 1).nextExercises.map((e) => e.exerciseId);
+    justDone.forEach((id) => expect(nextIds).not.toContain(id));
+  });
+
+  it('falls back to the whole pool when avoiding recent exercises would starve it', () => {
+    const plan: Plan = { ...generatePlan(baseIntake), exercisePool: ['pelvic-tilt'] };
+    const session = makeSessionFor([{ exerciseId: 'pelvic-tilt', painLevel: 2.0 }]);
+    const result  = adaptSession(plan, session, 1);
+    expect(result.nextExercises.length).toBeGreaterThan(0);
+    expect(result.nextExercises[0].exerciseId).toBe('pelvic-tilt');
+  });
+
+  it('defaults completedActiveDays to 0 when the caller omits it', () => {
+    const plan = poolPlan();
+    const withDefault = adaptSession(plan, makeSession([2.0])).nextExercises.map((e) => e.exerciseId);
+    const withZero    = adaptSession(plan, makeSession([2.0]), 0).nextExercises.map((e) => e.exerciseId);
+    expect(withDefault).toEqual(withZero);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// adaptSession — persistent "Pinched" exclusions
+// ---------------------------------------------------------------------------
+
+describe('adaptSession — excludedExerciseIds', () => {
+  const pool = [
+    'pelvic-tilt', 'cat-cow', 'childs-pose', 'knee-to-chest',
+    'hip-flexor-stretch', 'chin-tuck', 'neck-side-stretch', 'wrist-flexor-stretch',
+  ];
+
+  it('reports a newly pinched exercise as excluded', () => {
+    const plan: Plan = { ...generatePlan(baseIntake), exercisePool: pool };
+    const result = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 2.0, feedbackTags: ['Pinched'] },
+    ]));
+    expect(result.excludedExerciseIds).toContain('pelvic-tilt');
+  });
+
+  it('carries the plan exclusions forward even when nothing new is pinched', () => {
+    const plan: Plan = {
+      ...generatePlan(baseIntake),
+      exercisePool: pool,
+      excludedExerciseIds: ['cat-cow'],
+    };
+    const result = adaptSession(plan, makeSession([2.0]));
+    expect(result.excludedExerciseIds).toContain('cat-cow');
+  });
+
+  it('does not duplicate an exercise that is pinched twice', () => {
+    const plan: Plan = {
+      ...generatePlan(baseIntake),
+      exercisePool: pool,
+      excludedExerciseIds: ['pelvic-tilt'],
+    };
+    const result = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 2.0, feedbackTags: ['Pinched'] },
+    ]));
+    expect(result.excludedExerciseIds.filter((id) => id === 'pelvic-tilt')).toHaveLength(1);
+  });
+
+  it('honours plan exclusions when picking the next session', () => {
+    const plan: Plan = {
+      ...generatePlan(baseIntake),
+      exercisePool: pool,
+      excludedExerciseIds: ['childs-pose'],
+    };
+    const nextIds = adaptSession(plan, makeSession([2.0])).nextExercises.map((e) => e.exerciseId);
+    expect(nextIds).not.toContain('childs-pose');
+  });
+
+  it('still returns exercises when the exclusions would empty the pool', () => {
+    const plan: Plan = {
+      ...generatePlan(baseIntake),
+      exercisePool: ['pelvic-tilt'],
+      excludedExerciseIds: ['pelvic-tilt'],
+    };
+    const result = adaptSession(plan, makeSession([2.0]));
+    expect(result.nextExercises.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// adaptSession — "Skipped" logs are absent from the pain maths
+// ---------------------------------------------------------------------------
+
+describe('adaptSession — Skipped tag', () => {
+  it('ignores skipped logs in the mean pain score', () => {
+    const plan = generatePlan({ ...baseIntake, painIntensity: 2.0 });
+    const session = makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 1.0 },
+      { exerciseId: 'cat-cow',     painLevel: 4.0, feedbackTags: ['Skipped'] },
+    ]);
+    // Only the rated log counts: EMA = 0.4 * 1.0 + 0.6 * 2.0 = 1.6
+    expect(adaptSession(plan, session).painEMA).toBeCloseTo(1.6, 5);
+  });
+
+  it('matches a session where the skipped log was never recorded', () => {
+    const plan = generatePlan({ ...baseIntake, painIntensity: 2.0 });
+    const withSkip = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 1.0 },
+      { exerciseId: 'cat-cow',     painLevel: 3.0, feedbackTags: ['Skipped'] },
+    ]));
+    const without = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 1.0 },
+    ]));
+    expect(withSkip.painEMA).toBeCloseTo(without.painEMA, 5);
+    expect(withSkip.promotionStreak).toBe(without.promotionStreak);
+    expect(withSkip.demotionTrigger).toBe(without.demotionTrigger);
+  });
+
+  it('does not exclude an exercise that was skipped rather than pinched', () => {
+    const plan: Plan = { ...generatePlan(baseIntake), exercisePool: ['pelvic-tilt', 'cat-cow'] };
+    const result = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'cat-cow', painLevel: 0, feedbackTags: ['Skipped', 'Pinched'] },
+    ]));
+    // The whole log is ignored, so its Pinched tag cannot exclude anything.
+    expect(result.excludedExerciseIds).toEqual([]);
+  });
+
+  it('a fully skipped session scores 0 like an empty one', () => {
+    const plan = generatePlan({ ...baseIntake, painIntensity: 2.0 });
+    const allSkipped = adaptSession(plan, makeSessionFor([
+      { exerciseId: 'pelvic-tilt', painLevel: 3.0, feedbackTags: ['Skipped'] },
+    ]));
+    const empty = adaptSession(plan, { logs: [] });
+    expect(allSkipped.painEMA).toBeCloseTo(empty.painEMA, 5);
   });
 });

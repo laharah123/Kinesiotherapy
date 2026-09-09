@@ -2,74 +2,73 @@ import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSessionStore } from '@/lib/store/session';
 import { EXERCISE_MAP } from '@/data/exercises';
-import { AppBar } from '@/components/ui/AppBar';
-import { IconBtn } from '@/components/ui/AppBar';
+import { AppBar, IconBtn } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { Icon } from '@/lib/icons';
+import { COLORS, FONTS, RADII, fontFor } from '@/lib/tokens';
 
 const PAIN_LEVELS = [
-  { value: 0, label: 'None',       sub: 'No pain',          color: COLORS.pain0 },
-  { value: 1, label: 'Mild',       sub: 'Manageable',       color: COLORS.pain1 },
-  { value: 2, label: 'Moderate',   sub: 'Noticeable',       color: COLORS.pain2 },
-  { value: 3, label: 'Severe',     sub: 'Hard to ignore',   color: COLORS.pain3 },
-  { value: 4, label: 'Very severe',sub: 'Limiting',         color: COLORS.pain4 },
+  { value: 0, label: 'None',        sub: 'No pain',        color: COLORS.pain0 },
+  { value: 1, label: 'Mild',        sub: 'Manageable',     color: COLORS.pain1 },
+  { value: 2, label: 'Moderate',    sub: 'Noticeable',     color: COLORS.pain2 },
+  { value: 3, label: 'Severe',      sub: 'Hard to ignore', color: COLORS.pain3 },
+  { value: 4, label: 'Very severe', sub: 'Limiting',       color: COLORS.pain4 },
 ];
 
+// 'Pinched', 'Felt good', 'Easy' and 'Tightness' drive adaptSession: keep the wording.
 const FEEDBACK_TAGS = [
   'Felt good', 'Easy', 'Tightness', 'Pinched', 'Off-balance', 'Knees clicked',
 ];
 
-export default function PainFeedbackScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const {
-    activeSession, currentExerciseIndex, submitFeedback,
-  } = useSessionStore();
+interface FeedbackViewProps {
+  onRequestClose: () => void;
+}
 
-  // The exercise we just finished is one behind current (submitFeedback already advanced index)
-  const exercises  = activeSession?.exercises ?? [];
-  const prevIndex  = Math.max(0, currentExerciseIndex - 1);
-  const pe         = exercises[prevIndex] ?? exercises[currentExerciseIndex];
-  const exercise   = pe ? EXERCISE_MAP[pe.exerciseId] : null;
+/** Check-in for the exercise that was just finished (the current index). */
+export function FeedbackView({ onRequestClose }: FeedbackViewProps) {
+  const insets = useSafeAreaInsets();
 
-  const [painLevel, setPainLevel]   = useState<number | null>(null);
-  const [tags, setTags]             = useState<string[]>([]);
-  const [notes, setNotes]           = useState('');
+  const activeSession        = useSessionStore((s) => s.activeSession);
+  const currentExerciseIndex = useSessionStore((s) => s.currentExerciseIndex);
+  const submitFeedback       = useSessionStore((s) => s.submitFeedback);
+
+  const exercises = activeSession?.exercises ?? [];
+  const pe        = exercises[currentExerciseIndex];
+  const exercise  = pe ? EXERCISE_MAP[pe.exerciseId] : undefined;
+
+  const [painLevel, setPainLevel] = useState<number | null>(null);
+  const [tags, setTags]           = useState<string[]>([]);
+  const [notes, setNotes]         = useState('');
 
   function toggleTag(tag: string) {
-    setTags((ts) => ts.includes(tag) ? ts.filter((t) => t !== tag) : [...ts, tag]);
+    setTags((ts) => (ts.includes(tag) ? ts.filter((t) => t !== tag) : [...ts, tag]));
   }
 
   function handleContinue() {
     if (painLevel === null) return;
     submitFeedback(painLevel, tags, notes);
-    router.push('/session/today');
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <AppBar
-        left={<IconBtn icon="close" onPress={() => router.replace('/(main)')}/>}
+        left={<IconBtn icon="close" onPress={onRequestClose}/>}
         title="Quick check-in"
         right={
           <Text style={styles.indexText}>
-            {currentExerciseIndex} of {exercises.length}
+            {currentExerciseIndex + 1} of {exercises.length}
           </Text>
         }
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {exercise && (
-          <Text style={styles.eyebrow}>{exercise.name}</Text>
-        )}
+        {exercise && <Text style={styles.eyebrow}>{exercise.name}</Text>}
         <Text style={styles.headline}>How did that feel?</Text>
 
-        {/* Pain level cards */}
         <View style={styles.painGrid}>
           {PAIN_LEVELS.map((level) => {
             const selected = painLevel === level.value;
@@ -82,6 +81,8 @@ export default function PainFeedbackScreen() {
                 ]}
                 onPress={() => setPainLevel(level.value)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
               >
                 <View style={[styles.painDot, { backgroundColor: level.color }]}/>
                 <Text style={[styles.painLabel, selected && { color: level.color }]}>
@@ -90,7 +91,7 @@ export default function PainFeedbackScreen() {
                 <Text style={styles.painSub}>{level.sub}</Text>
                 {selected && (
                   <View style={[styles.painCheck, { backgroundColor: level.color }]}>
-                    <Text style={styles.painCheckMark}>✓</Text>
+                    <Icon name="check" size={13} color="#fff" strokeWidth={2.4}/>
                   </View>
                 )}
               </TouchableOpacity>
@@ -98,7 +99,6 @@ export default function PainFeedbackScreen() {
           })}
         </View>
 
-        {/* Feedback chips */}
         <Text style={styles.chipsLabel}>Anything else?</Text>
         <View style={styles.chips}>
           {FEEDBACK_TAGS.map((tag) => {
@@ -108,16 +108,15 @@ export default function PainFeedbackScreen() {
                 key={tag}
                 style={[styles.chip, active && styles.chipActive]}
                 onPress={() => toggleTag(tag)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {tag}
-                </Text>
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{tag}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Optional notes */}
         <TextInput
           style={styles.notesInput}
           placeholder="Any notes? (optional)"
@@ -151,12 +150,10 @@ const styles = StyleSheet.create({
 
   scroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 },
   eyebrow: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3, marginBottom: 4,
   },
-  headline: {
-    fontFamily: FONTS.serif, fontSize: 28, color: COLORS.ink, marginBottom: 24,
-  },
+  headline: { fontFamily: FONTS.serif, fontSize: 28, color: COLORS.ink, marginBottom: 24 },
 
   painGrid: { gap: 8, marginBottom: 28 },
   painCard: {
@@ -166,7 +163,7 @@ const styles = StyleSheet.create({
   },
   painDot: { width: 14, height: 14, borderRadius: 7 },
   painLabel: {
-    fontFamily: FONTS.sans, fontSize: 15, fontWeight: '600', color: COLORS.ink, flex: 1,
+    fontFamily: fontFor('600'), fontSize: 15, color: COLORS.ink, flex: 1,
   },
   painSub: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3 },
   painCheck: {
@@ -174,10 +171,9 @@ const styles = StyleSheet.create({
     width: 22, height: 22, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center',
   },
-  painCheckMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   chipsLabel: {
-    fontFamily: FONTS.sans, fontSize: 11, fontWeight: '700',
+    fontFamily: fontFor('700'), fontSize: 11,
     letterSpacing: 1, textTransform: 'uppercase', color: COLORS.ink3, marginBottom: 10,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
@@ -188,7 +184,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.claySoft, borderColor: COLORS.clay },
   chipText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink2 },
-  chipTextActive: { color: COLORS.clay, fontWeight: '600' },
+  chipTextActive: { color: COLORS.clay, fontFamily: fontFor('600') },
 
   notesInput: {
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,

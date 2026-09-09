@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   fetchPackages, purchasePackage, restorePurchases,
-  hasActiveEntitlement, type PurchaseResult,
+  hasActiveEntitlement, applyCustomerInfoToStore, isPurchasesConfigured,
+  STORE_NAME, type Packages, type PurchaseResult,
 } from '@/lib/revenuecat';
 import { useAuthStore } from '@/lib/store/auth';
 import { AppBar } from '@/components/ui/AppBar';
@@ -13,55 +13,70 @@ import { IconBtn } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { Icon } from '@/lib/icons';
-import { COLORS, FONTS, PRICING, RADII } from '@/lib/tokens';
+import { COLORS, FONTS, PRICING, RADII, fontFor } from '@/lib/tokens';
+import type { IconName } from '@/lib/tokens';
 
 type PlanKey = 'monthly' | 'yearly';
+type LoadState = 'loading' | 'ready' | 'unavailable';
 
-function TrustItem({ icon, label }: { icon: string; label: string }) {
+function TrustItem({ icon, label }: { icon: IconName; label: string }) {
   return (
     <View style={trust.item}>
-      <Icon name={icon as any} size={14} color={COLORS.ink3}/>
+      <Icon name={icon} size={14} color={COLORS.ink3}/>
       <Text style={trust.text}>{label}</Text>
     </View>
   );
 }
 const trust = StyleSheet.create({
-  item: { alignItems: 'center', gap: 4 },
+  item: { alignItems: 'center', gap: 4, flex: 1 },
   text: { fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink3, textAlign: 'center' },
 });
 
 export default function PlansScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const { setSubscription } = useAuthStore();
+  const router = useRouter();
+  const setSubscription = useAuthStore((s) => s.setSubscription);
 
   const [selected, setSelected]   = useState<PlanKey>('yearly');
-  const [packages, setPackages]   = useState<{ monthly: any; yearly: any }>({ monthly: null, yearly: null });
+  const [packages, setPackages]   = useState<Packages>({ monthly: null, yearly: null });
+  const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loading, setLoading]     = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [note, setNote]           = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPackages().then(setPackages).catch(() => {});
+  const load = useCallback(async () => {
+    setLoadState('loading');
+    const pkgs = await fetchPackages();
+    setPackages(pkgs);
+    setLoadState(pkgs.monthly || pkgs.yearly ? 'ready' : 'unavailable');
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   async function handlePurchase() {
     const pkg = selected === 'yearly' ? packages.yearly : packages.monthly;
-    setLoading(true); setError(null);
+    // No package means no way to charge anyone. Never unlock on this path.
+    if (!pkg) {
+      setError('Purchases are not available right now.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setNote(null);
     try {
-      if (pkg) {
-        const result: PurchaseResult = await purchasePackage(pkg);
-        if (result.success) {
-          router.replace('/subscription/subscribed');
-          return;
-        }
-        if (!result.cancelled) setError(result.error ?? 'Purchase failed.');
-      } else {
-        // RevenueCat not configured — dev mode, go straight to subscribed
+      const result: PurchaseResult = await purchasePackage(pkg);
+      if (result.success) {
+        // Unlock the UI now; the RevenueCat webhook writes the database row.
+        applyCustomerInfoToStore(result.customerInfo);
         router.replace('/subscription/subscribed');
+        return;
       }
-    } catch (e: any) {
-      setError(e.message ?? 'Something went wrong.');
+      if (result.cancelled) {
+        setNote('Purchase cancelled. Nothing was charged.');
+        return;
+      }
+      setError(result.error ?? 'Purchase failed.');
     } finally {
       setLoading(false);
     }
@@ -69,25 +84,64 @@ export default function PlansScreen() {
 
   async function handleRestore() {
     setRestoring(true);
+    setError(null);
+    setNote(null);
     try {
       const info = await restorePurchases();
-      if (hasActiveEntitlement(info)) router.replace('/subscription/subscribed');
-    } catch { /* silent */ } finally {
+      if (hasActiveEntitlement(info)) {
+        applyCustomerInfoToStore(info);
+        router.replace('/subscription/subscribed');
+        return;
+      }
+      setNote(`No subscription to restore on this ${STORE_NAME} account.`);
+    } finally {
       setRestoring(false);
     }
   }
 
+  /** Dev only: unlocks the local UI without any purchase. Never ships enabled. */
+  function simulatePurchase() {
+    setSubscription({
+      id: 'dev-simulated',
+      planType: selected,
+      status: 'active',
+      trialEndsAt: null,
+      currentPeriodEnds: new Date(
+        Date.now() + (selected === 'yearly' ? 365 : 30) * 86_400_000,
+      ).toISOString(),
+    });
+    router.replace('/subscription/subscribed');
+  }
+
+  const yearlyPrice  = packages.yearly?.product.priceString  ?? PRICING.yearly.price;
+  const monthlyPrice = packages.monthly?.product.priceString ?? PRICING.monthly.price;
+  const selectedPrice = selected === 'yearly' ? yearlyPrice : monthlyPrice;
+
+  // Only claim a saving we can actually compute from the prices on screen.
+  const savingsPct = (() => {
+    const monthly = packages.monthly?.product.price;
+    const yearly  = packages.yearly?.product.price;
+    if (monthly && yearly) {
+      const pct = Math.round((1 - yearly / (monthly * 12)) * 100);
+      return pct > 0 ? pct : null;
+    }
+    if (packages.monthly || packages.yearly) return null;   // store prices, one side missing
+    return 36;                                              // the fallback PRICING pair
+  })();
+
   const renewalDate = new Date(Date.now() + (selected === 'yearly' ? 365 : 30) * 86_400_000)
-    .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    .toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const unavailable = loadState === 'unavailable';
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <AppBar
         left={<IconBtn icon="back" onPress={() => router.back()}/>}
         title="Choose your plan"
         right={
           <TouchableOpacity onPress={handleRestore} disabled={restoring}>
-            <Text style={styles.restoreText}>{restoring ? 'Restoring…' : 'Restore'}</Text>
+            <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore'}</Text>
           </TouchableOpacity>
         }
       />
@@ -95,6 +149,27 @@ export default function PlansScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {error && <Text style={styles.error}>{error}</Text>}
+        {note  && <Text style={styles.note}>{note}</Text>}
+
+        {unavailable && (
+          <View style={styles.unavailable}>
+            <Text style={styles.unavailableTitle}>Purchases are not available right now</Text>
+            <Text style={styles.unavailableBody}>
+              {isPurchasesConfigured()
+                ? `We could not reach ${STORE_NAME}. Check your connection and try again.`
+                : 'This build has no store keys, so nothing can be purchased in it.'}
+            </Text>
+            <Button label="Try again" variant="ghost" onPress={load} style={styles.retry}/>
+            {__DEV__ && (
+              <Button
+                label="Simulate purchase (dev)"
+                variant="ghost"
+                onPress={simulatePurchase}
+                style={styles.retry}
+              />
+            )}
+          </View>
+        )}
 
         {/* Yearly card */}
         <TouchableOpacity
@@ -105,11 +180,13 @@ export default function PlansScreen() {
           <View style={styles.planTop}>
             <View style={styles.planInfo}>
               <Text style={styles.planName}>Yearly</Text>
-              <Text style={styles.planSub}>Just $8.33/month</Text>
+              <Text style={styles.planSub}>
+                {packages.yearly ? 'Billed once a year' : PRICING.yearly.sub}
+              </Text>
             </View>
             <View style={styles.planRight}>
-              <Tag label="Save 36%" tone="sage"/>
-              <Text style={styles.planPrice}>{PRICING.yearly.price}<Text style={styles.planPeriod}>/yr</Text></Text>
+              {savingsPct != null && <Tag label={`Save ${savingsPct}%`} tone="sage"/>}
+              <Text style={styles.planPrice}>{yearlyPrice}<Text style={styles.planPeriod}>/yr</Text></Text>
             </View>
             <View style={[styles.radio, selected === 'yearly' && styles.radioSelected]}>
               {selected === 'yearly' && <View style={styles.radioDot}/>}
@@ -126,10 +203,10 @@ export default function PlansScreen() {
           <View style={styles.planTop}>
             <View style={styles.planInfo}>
               <Text style={styles.planName}>Monthly</Text>
-              <Text style={styles.planSub}>Flexible, cancel anytime</Text>
+              <Text style={styles.planSub}>Billed every month</Text>
             </View>
             <View style={styles.planRight}>
-              <Text style={styles.planPrice}>{PRICING.monthly.price}<Text style={styles.planPeriod}>/mo</Text></Text>
+              <Text style={styles.planPrice}>{monthlyPrice}<Text style={styles.planPeriod}>/mo</Text></Text>
             </View>
             <View style={[styles.radio, selected === 'monthly' && styles.radioSelected]}>
               {selected === 'monthly' && <View style={styles.radioDot}/>}
@@ -139,9 +216,9 @@ export default function PlansScreen() {
 
         {/* Trust row */}
         <View style={styles.trustRow}>
-          <TrustItem icon="check" label={"Cancel\nanytime"}/>
-          <TrustItem icon="close" label={"No\nads"}/>
-          <TrustItem icon="shield" label={"30-day\nrefund"}/>
+          <TrustItem icon="check" label={'Cancel\nany time'}/>
+          <TrustItem icon="close" label={'No\nads'}/>
+          <TrustItem icon="lock"  label={`Billed by\n${STORE_NAME}`}/>
         </View>
 
         {/* Timeline */}
@@ -159,25 +236,28 @@ export default function PlansScreen() {
             <View style={[styles.timelineDot, styles.timelineDotMuted]}/>
             <View>
               <Text style={[styles.timelineLabel, { color: COLORS.ink3 }]}>{renewalDate}</Text>
-              <Text style={styles.timelineDesc}>
-                Renews at {selected === 'yearly' ? PRICING.yearly.price : PRICING.monthly.price}
-              </Text>
+              <Text style={styles.timelineDesc}>Renews at {selectedPrice} unless you cancel</Text>
             </View>
           </View>
         </View>
 
         {/* CTA */}
         <Button
-          label={`Continue with ${selected === 'yearly' ? 'Yearly' : 'Monthly'}`}
+          label={
+            loadState === 'loading'
+              ? 'Loading plans...'
+              : `Continue with ${selected === 'yearly' ? 'Yearly' : 'Monthly'}`
+          }
           full
           loading={loading}
+          disabled={loadState !== 'ready'}
           onPress={handlePurchase}
           style={styles.cta}
         />
 
         <Text style={styles.finePrint}>
-          Auto-renews. Cancel any time in your App Store or Play Store settings.
-          Prices in USD. By continuing you agree to our Terms of Service.
+          Auto renews until you cancel. Cancel any time in your {STORE_NAME} settings.
+          By continuing you agree to our Terms of Service.
         </Text>
       </ScrollView>
     </View>
@@ -194,6 +274,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.claySoft, borderRadius: RADII.r1,
     padding: 10, marginBottom: 12,
   },
+  note: {
+    fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink2,
+    backgroundColor: COLORS.surface2, borderRadius: RADII.r1,
+    padding: 10, marginBottom: 12,
+  },
+
+  unavailable: {
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: RADII.r2, padding: 16, marginBottom: 16, gap: 8,
+  },
+  unavailableTitle: {
+    fontFamily: fontFor('700'), fontSize: 14, color: COLORS.ink },
+  unavailableBody: {
+    fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink2, lineHeight: 19,
+  },
+  retry: { alignSelf: 'flex-start' },
 
   planCard: {
     backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border,
@@ -202,7 +298,7 @@ const styles = StyleSheet.create({
   planCardSelected: { borderColor: COLORS.clay, backgroundColor: COLORS.claySoft },
   planTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   planInfo: { flex: 1 },
-  planName: { fontFamily: FONTS.sans, fontSize: 16, fontWeight: '700', color: COLORS.ink },
+  planName: { fontFamily: fontFor('700'), fontSize: 16, color: COLORS.ink },
   planSub: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3, marginTop: 2 },
   planRight: { alignItems: 'flex-end', gap: 4 },
   planPrice: { fontFamily: FONTS.serif, fontSize: 22, color: COLORS.ink },
@@ -226,9 +322,8 @@ const styles = StyleSheet.create({
     borderRadius: RADII.r2, padding: 16, marginBottom: 24,
   },
   timelineTitle: {
-    fontFamily: FONTS.sans, fontSize: 12, fontWeight: '700', color: COLORS.ink3,
-    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14,
-  },
+    fontFamily: fontFor('700'), fontSize: 12, color: COLORS.ink3,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
   timelineRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   timelineDot: {
     width: 12, height: 12, borderRadius: 6,
@@ -239,7 +334,7 @@ const styles = StyleSheet.create({
     width: 2, height: 20, backgroundColor: COLORS.borderSoft,
     marginLeft: 5, marginVertical: 4,
   },
-  timelineLabel: { fontFamily: FONTS.sans, fontSize: 14, fontWeight: '600', color: COLORS.ink },
+  timelineLabel: { fontFamily: fontFor('600'), fontSize: 14, color: COLORS.ink },
   timelineDesc: { fontFamily: FONTS.sans, fontSize: 12, color: COLORS.ink3, marginTop: 2 },
 
   cta: { marginBottom: 14 },

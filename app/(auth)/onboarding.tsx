@@ -6,7 +6,9 @@ import {
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Ellipse, Line } from 'react-native-svg';
 import { Button } from '@/components/ui/Button';
-import { COLORS, FONTS, RADII } from '@/lib/tokens';
+import { markOnboardingComplete } from '@/lib/auth/bootstrap';
+import { useAuthStore } from '@/lib/store/auth';
+import { COLORS, FONTS } from '@/lib/tokens';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -86,11 +88,19 @@ export default function OnboardingScreen() {
     setStep(idx);
   }
 
+  /** Marks onboarding done, then sends the user on: intake when signed in,
+   *  sign up when not. */
+  async function finish() {
+    await markOnboardingComplete();
+    if (useAuthStore.getState().user) router.replace('/(intake)/body-map');
+    else router.replace('/(auth)/signup');
+  }
+
   function next() {
     if (step < SLIDES.length - 1) {
       scrollRef.current?.scrollTo({ x: (step + 1) * SCREEN_W, animated: true });
     } else {
-      router.replace('/(intake)/body-map');
+      finish();
     }
   }
 
@@ -99,7 +109,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.root}>
       {/* Skip */}
-      <TouchableOpacity style={styles.skip} onPress={() => router.replace('/(intake)/body-map')}>
+      <TouchableOpacity style={styles.skip} onPress={finish}>
         <Text style={styles.skipText}>Skip</Text>
       </TouchableOpacity>
 
