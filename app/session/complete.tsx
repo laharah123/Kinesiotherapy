@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Ellipse } from 'react-native-svg';

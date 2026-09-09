@@ -59,7 +59,7 @@ const STEPS = [
   },
   {
     key: 'goals' as const,
-    question: 'What's your main goal?',
+    question: "What's your main goal?",
     multi: true,
     options: [
       { value: 'reduce-pain',     label: 'Reduce pain',        subtitle: 'Day-to-day relief' },

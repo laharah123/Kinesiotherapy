@@ -52,4 +52,20 @@ describe('Tag', () => {
     const unique = new Set(bgColors);
     expect(unique.size).toBe(4);
   });
+
+  it('renders the label prop', () => {
+    render(<Tag label="Acute" />);
+    expect(screen.getByText('Acute')).toBeTruthy();
+  });
+
+  it('renders the label prop with a tone', () => {
+    render(<Tag label="Mobility" tone="sage" />);
+    expect(screen.getByText('Mobility')).toBeTruthy();
+  });
+
+  it('label takes precedence over children when both are given', () => {
+    render(<Tag label="Label wins">Children lose</Tag>);
+    expect(screen.getByText('Label wins')).toBeTruthy();
+    expect(screen.queryByText('Children lose')).toBeNull();
+  });
 });

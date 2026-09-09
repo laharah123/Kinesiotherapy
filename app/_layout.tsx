@@ -1,6 +1,16 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import {
+  InstrumentSerif_400Regular,
+  InstrumentSerif_400Regular_Italic,
+} from '@expo-google-fonts/instrument-serif';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,12 +28,12 @@ export default function RootLayout() {
   const { setUser, setProfile, setSubscription, signOut } = useAuthStore();
 
   const [fontsLoaded, fontError] = useFonts({
-    InstrumentSerif: require('@/assets/fonts/InstrumentSerif-Regular.ttf'),
-    'InstrumentSerif-Italic': require('@/assets/fonts/InstrumentSerif-Italic.ttf'),
-    Inter: require('@/assets/fonts/Inter-Regular.ttf'),
-    'Inter-Medium': require('@/assets/fonts/Inter-Medium.ttf'),
-    'Inter-SemiBold': require('@/assets/fonts/Inter-SemiBold.ttf'),
-    'Inter-Bold': require('@/assets/fonts/Inter-Bold.ttf'),
+    InstrumentSerif: InstrumentSerif_400Regular,
+    'InstrumentSerif-Italic': InstrumentSerif_400Regular_Italic,
+    Inter: Inter_400Regular,
+    'Inter-Medium': Inter_500Medium,
+    'Inter-SemiBold': Inter_600SemiBold,
+    'Inter-Bold': Inter_700Bold,
   });
 
   // Hide splash once fonts are ready

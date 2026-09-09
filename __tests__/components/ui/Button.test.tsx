@@ -103,4 +103,33 @@ describe('Button', () => {
     render(<Button>No icon</Button>);
     expect(screen.queryByTestId(/^icon-/)).toBeNull();
   });
+
+  it('renders the label prop', () => {
+    render(<Button label="Continue" />);
+    expect(screen.getByText('Continue')).toBeTruthy();
+  });
+
+  it('calls onPress when a label-only button is tapped', () => {
+    const onPress = jest.fn();
+    render(<Button label="Continue" onPress={onPress} />);
+    fireEvent.press(screen.getByText('Continue'));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('label takes precedence over children when both are given', () => {
+    render(<Button label="Label wins">Children lose</Button>);
+    expect(screen.getByText('Label wins')).toBeTruthy();
+    expect(screen.queryByText('Children lose')).toBeNull();
+  });
+
+  it('renders an icon alongside the label prop', () => {
+    render(<Button label="Start" icon="play" iconPosition="left" />);
+    expect(screen.getByText('Start')).toBeTruthy();
+    expect(screen.getByTestId('icon-play')).toBeTruthy();
+  });
+
+  it('does not show the label prop while loading', () => {
+    render(<Button label="Saving" loading />);
+    expect(screen.queryByText('Saving')).toBeNull();
+  });
 });

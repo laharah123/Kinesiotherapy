@@ -5,7 +5,9 @@ import type { ToneColor } from '@/lib/tokens';
 
 interface TagProps {
   tone?: ToneColor;
-  children: React.ReactNode;
+  /** Text label. Takes precedence over `children` when both are supplied. */
+  label?: string;
+  children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 }
@@ -24,11 +26,11 @@ const TONE_FG: Record<ToneColor, string> = {
   neutral: COLORS.ink2,
 };
 
-export function Tag({ tone = 'neutral', children, style, textStyle }: TagProps) {
+export function Tag({ tone = 'neutral', label, children, style, textStyle }: TagProps) {
   return (
     <View style={[styles.base, { backgroundColor: TONE_BG[tone] }, style]}>
       <Text style={[styles.label, { color: TONE_FG[tone] }, textStyle]}>
-        {children}
+        {label ?? children}
       </Text>
     </View>
   );

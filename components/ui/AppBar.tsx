@@ -15,21 +15,26 @@ import type { IconName } from '@/lib/tokens';
 // ─── IconBtn ────────────────────────────────────────────────────────────────
 
 interface IconBtnProps {
-  name: IconName;
+  /** Icon to render. Alias of `name` — takes precedence when both are given. */
+  icon?: IconName;
+  name?: IconName;
   onPress?: () => void;
   color?: string;
   tinted?: boolean;
 }
 
-export function IconBtn({ name, onPress, color, tinted = false }: IconBtnProps) {
+export function IconBtn({ icon, name, onPress, color, tinted = false }: IconBtnProps) {
   const iconColor = color ?? (tinted ? '#fff' : COLORS.ink);
+  const iconName = icon ?? name;
+  if (!iconName) return null;
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
+      hitSlop={8}
       style={[styles.iconBtn, tinted && styles.iconBtnTinted]}
     >
-      <Icon name={name} size={20} color={iconColor}/>
+      <Icon name={iconName} size={20} color={iconColor}/>
     </TouchableOpacity>
   );
 }

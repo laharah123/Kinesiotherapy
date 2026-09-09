@@ -171,12 +171,12 @@ export async function completeSession(sessionId: string, patch: {
 
 export async function saveExerciseLogs(
   sessionId: string,
-  logs: Array<{
+  logs: {
     exercise_id: string;
     pain_level: number;
     feedback_tags: string[];
     notes?: string;
-  }>,
+  }[],
 ) {
   const rows = logs.map((l) => ({ session_id: sessionId, ...l }));
   const { error } = await supabase.from('exercise_logs').insert(rows);

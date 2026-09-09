@@ -123,7 +123,7 @@ export default function ConditionScreen() {
 
       <View style={styles.footer}>
         <Button
-          label={selectedCondition ? 'Continue' : 'Skip — I'll explore'}
+          label={selectedCondition ? 'Continue' : "Skip — I'll explore"}
           onPress={() => router.push('/(intake)/questionnaire')}
           full
           icon="arrowRight"

@@ -7,10 +7,13 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest",
+    "test": "tsc --noEmit && jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "jest",
+    "assets:generate": "node scripts/generate-assets.mjs"
   },
   "dependencies": {
     "expo": "~52.0.0",
@@ -32,8 +35,12 @@
     "@supabase/supabase-js": "^2.47.0",
     "react-native-url-polyfill": "^2.0.0",
     "@react-native-async-storage/async-storage": "^2.1.0",
-    "purchases-react-native": "^8.0.0",
-    "expo-linear-gradient": "~14.0.0"
+    "expo-linear-gradient": "~14.0.0",
+    "react-native-purchases": "^8.12.0",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "expo-haptics": "~14.0.1",
+    "expo-web-browser": "~14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
@@ -43,6 +50,9 @@
     "ts-jest": "^29.0.0",
     "@types/jest": "^29.0.0",
     "@testing-library/react-native": "^12.0.0",
-    "@testing-library/jest-native": "^5.4.0"
+    "@testing-library/jest-native": "^5.4.0",
+    "react-test-renderer": "18.3.1",
+    "eslint": "^8.57.0",
+    "eslint-config-expo": "~8.0.1"
   }
 }

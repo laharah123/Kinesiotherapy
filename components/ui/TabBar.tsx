@@ -1,44 +1,34 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, usePathname } from 'expo-router';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { COLORS, FONTS, SHADOWS } from '@/lib/tokens';
 import { Icon } from '@/lib/icons';
 import type { IconName } from '@/lib/tokens';
 
-type TabKey = 'home' | 'plan' | 'progress' | 'profile';
+/** Route names as registered in app/(main)/_layout.tsx */
+type TabKey = 'index' | 'plan' | 'progress' | 'profile';
 
 interface TabItem {
   key: TabKey;
   label: string;
   icon: IconName;
-  href: string;
 }
 
 const TABS: TabItem[] = [
-  { key: 'home',     label: 'Today',    icon: 'home',     href: '/' },
-  { key: 'plan',     label: 'Plan',     icon: 'plan',     href: '/plan' },
-  { key: 'progress', label: 'Progress', icon: 'progress', href: '/progress' },
-  { key: 'profile',  label: 'You',      icon: 'profile',  href: '/profile' },
+  { key: 'index',    label: 'Today',    icon: 'home' },
+  { key: 'plan',     label: 'Plan',     icon: 'plan' },
+  { key: 'progress', label: 'Progress', icon: 'progress' },
+  { key: 'profile',  label: 'You',      icon: 'profile' },
 ];
 
-interface TabBarProps {
-  active?: TabKey;
-}
-
-export function TabBar({ active }: TabBarProps) {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const currentKey = active ?? (
-    TABS.find(t => pathname === t.href || pathname.startsWith(t.href + '/'))?.key ?? 'home'
-  );
+export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
+  const activeRoute = state.routes[state.index]?.name ?? 'index';
+  const bottomInset = insets?.bottom ?? 0;
 
   return (
-    <View style={[styles.bar, { paddingBottom: insets.bottom + 8 }, SHADOWS.card]}>
+    <View style={[styles.bar, { paddingBottom: bottomInset + 8 }, SHADOWS.card]}>
       {TABS.map((tab) => {
-        const isActive = tab.key === currentKey;
+        const isActive = tab.key === activeRoute;
         const iconColor = isActive ? COLORS.clay : COLORS.ink3;
 
         return (
@@ -46,7 +36,11 @@ export function TabBar({ active }: TabBarProps) {
             key={tab.key}
             style={styles.tab}
             activeOpacity={0.7}
-            onPress={() => router.push(tab.href as any)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            onPress={() => {
+              if (!isActive) navigation.navigate(tab.key);
+            }}
           >
             <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
               <Icon name={tab.icon} size={22} color={iconColor}/>

@@ -15,7 +15,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, type DimensionValue } from 'react-native';
 import Svg, { Path, Circle, Line, Ellipse } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -55,8 +55,8 @@ interface AnimatedFigureProps {
   figureType?: FigureType;
   accent?: string;
   dark?: boolean;
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
 }
 
 // ─── Color helper ─────────────────────────────────────────────────────────────
@@ -479,9 +479,9 @@ function useBounceCycle(totalMs = 4000): Animated.SharedValue<number> {
     const q = totalMs / 4;
     phase.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: q, easing: Easing.inOut(Easing.sine) }),
+        withTiming(1, { duration: q, easing: Easing.inOut(Easing.sin) }),
         withDelay(q, withTiming(1, { duration: 50 })),
-        withTiming(0, { duration: q, easing: Easing.inOut(Easing.sine) }),
+        withTiming(0, { duration: q, easing: Easing.inOut(Easing.sin) }),
         withDelay(q, withTiming(0, { duration: 50 })),
       ),
       -1,

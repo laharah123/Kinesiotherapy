@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View } from 'react-native';
+import { View, type DimensionValue } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { COLORS } from '@/lib/tokens';
 import type { FigureType } from './AnimatedFigure';
@@ -14,8 +14,8 @@ interface ExerciseFigureProps {
   figureType?: FigureType;
   accent?: string;
   dark?: boolean;
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
 }
 
 // Each static figure is the mid-motion snapshot (phase ≈ 0.6)

@@ -22,7 +22,9 @@ interface ButtonProps {
   iconPosition?: 'left' | 'right';
   loading?: boolean;
   disabled?: boolean;
-  children: React.ReactNode;
+  /** Text label. Takes precedence over `children` when both are supplied. */
+  label?: string;
+  children?: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
@@ -35,6 +37,7 @@ export function Button({
   iconPosition = 'right',
   loading = false,
   disabled = false,
+  label,
   children,
   onPress,
   style,
@@ -69,7 +72,7 @@ export function Button({
             isPrimary ? styles.labelPrimary : styles.labelGhost,
             textStyle,
           ]}>
-            {children}
+            {label ?? children}
           </Text>
           {icon && iconPosition === 'right' && (
             <View style={styles.iconRight}>

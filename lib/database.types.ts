@@ -1,96 +1,404 @@
-// Minimal DB types — replace with `supabase gen types typescript` output once project is linked.
+/**
+ * Database types for the Kinesiotherapy Supabase project.
+ *
+ * Shaped exactly like the output of `supabase gen types typescript`, so that
+ * `createClient<Database>()` infers row/insert/update types for every query.
+ * Regenerate with:
+ *
+ *   supabase gen types typescript --project-id <ref> > lib/database.types.ts
+ *
+ * Kept in sync by hand with supabase/migrations/001_init.sql.
+ */
 
-export interface Database {
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: '12.2.3';
+  };
   public: {
     Tables: {
       profiles: {
         Row: {
-          id: string;
-          display_name: string | null;
           created_at: string;
-          streak_days: number;
+          display_name: string | null;
+          id: string;
           last_session: string | null;
+          streak_days: number;
         };
-        Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { id: string };
-        Update: Partial<Database['public']['Tables']['profiles']['Row']>;
+        Insert: {
+          created_at?: string;
+          display_name?: string | null;
+          id: string;
+          last_session?: string | null;
+          streak_days?: number;
+        };
+        Update: {
+          created_at?: string;
+          display_name?: string | null;
+          id?: string;
+          last_session?: string | null;
+          streak_days?: number;
+        };
+        Relationships: [];
       };
       subscriptions: {
         Row: {
+          created_at: string;
+          current_period_ends: string | null;
           id: string;
-          user_id: string;
           plan_type: 'monthly' | 'yearly' | null;
+          revenuecat_id: string | null;
           status: 'trialing' | 'active' | 'cancelled' | 'none';
           trial_ends_at: string | null;
-          current_period_ends: string | null;
-          revenuecat_id: string | null;
-          created_at: string;
+          user_id: string;
         };
-        Insert: Omit<Database['public']['Tables']['subscriptions']['Row'], 'id' | 'created_at'>;
-        Update: Partial<Database['public']['Tables']['subscriptions']['Row']>;
+        Insert: {
+          created_at?: string;
+          current_period_ends?: string | null;
+          id?: string;
+          plan_type?: 'monthly' | 'yearly' | null;
+          revenuecat_id?: string | null;
+          status?: 'trialing' | 'active' | 'cancelled' | 'none';
+          trial_ends_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          current_period_ends?: string | null;
+          id?: string;
+          plan_type?: 'monthly' | 'yearly' | null;
+          revenuecat_id?: string | null;
+          status?: 'trialing' | 'active' | 'cancelled' | 'none';
+          trial_ends_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'subscriptions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       plans: {
         Row: {
-          id: string;
-          user_id: string;
-          condition_id: string | null;
-          title: string;
-          effort: string;
-          duration_days: number;
-          created_at: string;
           active: boolean;
+          condition_id: string | null;
+          created_at: string;
+          demotion_trigger: number;
+          duration_days: number;
+          effort: string;
           exercise_pool: string[];
-          user_tier: number;
+          id: string;
           pain_ema: number;
           promotion_streak: number;
-          demotion_trigger: number;
+          title: string;
+          user_id: string;
+          user_tier: number;
         };
-        Insert: Omit<Database['public']['Tables']['plans']['Row'], 'id' | 'created_at'>;
-        Update: Partial<Database['public']['Tables']['plans']['Row']>;
+        Insert: {
+          active?: boolean;
+          condition_id?: string | null;
+          created_at?: string;
+          demotion_trigger?: number;
+          duration_days?: number;
+          effort?: string;
+          exercise_pool?: string[];
+          id?: string;
+          pain_ema?: number;
+          promotion_streak?: number;
+          title: string;
+          user_id: string;
+          user_tier?: number;
+        };
+        Update: {
+          active?: boolean;
+          condition_id?: string | null;
+          created_at?: string;
+          demotion_trigger?: number;
+          duration_days?: number;
+          effort?: string;
+          exercise_pool?: string[];
+          id?: string;
+          pain_ema?: number;
+          promotion_streak?: number;
+          title?: string;
+          user_id?: string;
+          user_tier?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'plans_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       plan_exercises: {
         Row: {
+          day: number;
+          exercise_id: string;
+          hold_seconds: number;
           id: string;
           plan_id: string;
-          exercise_id: string;
-          day: number;
-          sequence: number;
           reps: number;
-          sets: number;
-          hold_seconds: number;
           rest_seconds: number;
+          sequence: number;
+          sets: number;
         };
-        Insert: Omit<Database['public']['Tables']['plan_exercises']['Row'], 'id'>;
-        Update: Partial<Database['public']['Tables']['plan_exercises']['Row']>;
+        Insert: {
+          day: number;
+          exercise_id: string;
+          hold_seconds?: number;
+          id?: string;
+          plan_id: string;
+          reps?: number;
+          rest_seconds?: number;
+          sequence: number;
+          sets?: number;
+        };
+        Update: {
+          day?: number;
+          exercise_id?: string;
+          hold_seconds?: number;
+          id?: string;
+          plan_id?: string;
+          reps?: number;
+          rest_seconds?: number;
+          sequence?: number;
+          sets?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'plan_exercises_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'plans';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       sessions: {
         Row: {
-          id: string;
-          user_id: string;
-          plan_id: string;
+          avg_pain: number | null;
+          completed: boolean;
           date: string;
           duration_secs: number | null;
-          completed: boolean;
-          avg_pain: number | null;
+          id: string;
+          plan_id: string;
+          user_id: string;
         };
-        Insert: Omit<Database['public']['Tables']['sessions']['Row'], 'id' | 'date'>;
-        Update: Partial<Database['public']['Tables']['sessions']['Row']>;
+        Insert: {
+          avg_pain?: number | null;
+          completed?: boolean;
+          date?: string;
+          duration_secs?: number | null;
+          id?: string;
+          plan_id: string;
+          user_id: string;
+        };
+        Update: {
+          avg_pain?: number | null;
+          completed?: boolean;
+          date?: string;
+          duration_secs?: number | null;
+          id?: string;
+          plan_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sessions_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'plans';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sessions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       exercise_logs: {
         Row: {
-          id: string;
-          session_id: string;
-          exercise_id: string;
-          pain_level: number;
-          feedback_tags: string[];
-          notes: string | null;
           completed_at: string;
+          exercise_id: string;
+          feedback_tags: string[];
+          id: string;
+          notes: string | null;
+          pain_level: number;
+          session_id: string;
         };
-        Insert: Omit<Database['public']['Tables']['exercise_logs']['Row'], 'id' | 'completed_at'>;
-        Update: Partial<Database['public']['Tables']['exercise_logs']['Row']>;
+        Insert: {
+          completed_at?: string;
+          exercise_id: string;
+          feedback_tags?: string[];
+          id?: string;
+          notes?: string | null;
+          pain_level: number;
+          session_id: string;
+        };
+        Update: {
+          completed_at?: string;
+          exercise_id?: string;
+          feedback_tags?: string[];
+          id?: string;
+          notes?: string | null;
+          pain_level?: number;
+          session_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_logs_session_id_fkey';
+            columns: ['session_id'];
+            isOneToOne: false;
+            referencedRelation: 'sessions';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      handle_new_user: {
+        Args: Record<PropertyKey, never>;
+        Returns: unknown;
+      };
+      update_streak_on_session_complete: {
+        Args: Record<PropertyKey, never>;
+        Returns: unknown;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
-}
+};
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>;
+
+type DefaultSchema = DatabaseWithoutInternals['public'];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] &
+        DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema['Tables']
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends { Insert: infer I }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema['Tables']
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends { Update: infer U }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema['Enums']
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema['CompositeTypes']
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const;

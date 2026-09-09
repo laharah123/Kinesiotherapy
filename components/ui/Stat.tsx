@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { COLORS, RADII, FONTS } from '@/lib/tokens';
 import type { ToneColor } from '@/lib/tokens';
 
@@ -8,6 +8,7 @@ interface StatProps {
   value: string;
   unit?: string;
   tone?: ToneColor;
+  style?: StyleProp<ViewStyle>;
 }
 
 const TONE_MAP: Record<ToneColor, { bg: string; fg: string }> = {
@@ -17,10 +18,10 @@ const TONE_MAP: Record<ToneColor, { bg: string; fg: string }> = {
   neutral: { bg: COLORS.surface2,  fg: COLORS.ink2 },
 };
 
-export function Stat({ label, value, unit, tone = 'clay' }: StatProps) {
+export function Stat({ label, value, unit, tone = 'clay', style }: StatProps) {
   const { bg, fg } = TONE_MAP[tone];
   return (
-    <View style={[styles.base, { backgroundColor: bg }]}>
+    <View style={[styles.base, { backgroundColor: bg }, style]}>
       <Text style={[styles.label, { color: fg }]}>{label}</Text>
       <View style={styles.row}>
         <Text style={[styles.value, { color: fg }]}>{value}</Text>

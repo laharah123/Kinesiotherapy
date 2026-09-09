@@ -1,5 +1,7 @@
 import React from 'react';
+import { Pressable, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { COLORS } from './tokens';
 import type { IconName } from './tokens';
 
 interface IconProps {
@@ -7,9 +9,15 @@ interface IconProps {
   size?: number;
   color?: string;
   strokeWidth?: number;
+  /** When provided, the icon is wrapped in a Pressable with a 40x40 touch area. */
+  onPress?: () => void;
+  /** Applied to the wrapper View / Pressable around the glyph. */
+  style?: StyleProp<ViewStyle>;
 }
 
-export function Icon({ name, size = 22, color = 'currentColor', strokeWidth = 1.7 }: IconProps) {
+type IconGlyphProps = Pick<IconProps, 'name' | 'size' | 'color' | 'strokeWidth'>;
+
+function IconGlyph({ name, size = 22, color = COLORS.ink, strokeWidth = 1.7 }: IconGlyphProps) {
   const p = {
     width: size,
     height: size,
@@ -185,3 +193,30 @@ export function Icon({ name, size = 22, color = 'currentColor', strokeWidth = 1.
       return <Svg {...p}><Circle cx="12" cy="12" r="8"/></Svg>;
   }
 }
+
+export function Icon({ name, size, color, strokeWidth, onPress, style }: IconProps) {
+  const glyph = <IconGlyph name={name} size={size} color={color} strokeWidth={strokeWidth}/>;
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} hitSlop={10} style={[styles.touch, style]}>
+        {glyph}
+      </Pressable>
+    );
+  }
+
+  if (style) {
+    return <View style={style}>{glyph}</View>;
+  }
+
+  return glyph;
+}
+
+const styles = StyleSheet.create({
+  touch: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

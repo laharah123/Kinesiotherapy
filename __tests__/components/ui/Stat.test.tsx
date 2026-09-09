@@ -63,4 +63,16 @@ describe('Stat', () => {
     const unique = new Set(bgColors);
     expect(unique.size).toBe(4);
   });
+
+  it('applies a caller style to the outer view', () => {
+    const { UNSAFE_getByType } = render(
+      <Stat label="L" value="V" style={{ flex: 1 }} />,
+    );
+    const { View } = require('react-native');
+    const flatStyle: any = Object.assign(
+      {},
+      ...[UNSAFE_getByType(View).props.style].flat().filter(Boolean),
+    );
+    expect(flatStyle.flex).toBe(1);
+  });
 });

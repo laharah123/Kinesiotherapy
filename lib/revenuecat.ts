@@ -3,7 +3,7 @@ import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
   LOG_LEVEL,
-} from 'purchases-react-native';
+} from 'react-native-purchases';
 import { Platform } from 'react-native';
 import { PRICING } from '@/lib/tokens';
 
@@ -44,11 +44,11 @@ export async function fetchPackages(): Promise<{
   if (!offering) return { monthly: null, yearly: null };
 
   const monthly = offering.availablePackages.find(
-    (p) => p.product.identifier === PRICING.monthly.productId,
+    (p: PurchasesPackage) => p.product.identifier === PRICING.monthly.productId,
   ) ?? null;
 
   const yearly = offering.availablePackages.find(
-    (p) => p.product.identifier === PRICING.yearly.productId,
+    (p: PurchasesPackage) => p.product.identifier === PRICING.yearly.productId,
   ) ?? null;
 
   return { monthly, yearly };
