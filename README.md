@@ -88,3 +88,16 @@ supabase/       SQL migrations
 scripts/        Build-time tooling (asset generation)
 __tests__/      Jest unit tests
 ```
+
+## Legal pages (privacy, terms, support)
+
+`docs/` holds the privacy policy, terms of service and support page as plain
+HTML. Publish them with GitHub Pages: repository Settings → Pages → Source
+"Deploy from a branch", branch `main`, folder `/docs`. They appear at
+`https://laharah123.github.io/kinesiotherapy/` within a few minutes.
+
+Before publishing, replace every highlighted `[PLACEHOLDER]` (name, address,
+contact email, Supabase region, governing law, dates) and have the text
+reviewed by someone qualified in your jurisdiction. The app links to these
+pages from `lib/plans/links.ts`; change the constants there if you host them
+elsewhere.

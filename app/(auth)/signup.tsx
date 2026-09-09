@@ -4,6 +4,8 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Linking } from 'react-native';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/plans/links';
 
 import { signUpWithEmail, signInWithOAuth } from '@/lib/supabase';
 import { authErrorMessage } from '@/lib/auth/errors';
@@ -182,7 +184,10 @@ export default function SignupScreen() {
         )}
 
         <Text style={styles.legal}>
-          By creating an account you agree to our Terms of Service and Privacy Policy.
+          By creating an account you agree to our{' '}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}>Terms of Service</Text>
+          {' '}and{' '}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}>Privacy Policy</Text>.
         </Text>
 
         <TouchableOpacity style={styles.switchRow} onPress={() => router.push('/(auth)/login')}>
@@ -224,6 +229,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink4,
     textAlign: 'center', marginTop: 20, lineHeight: 16,
   },
+  legalLink: { color: COLORS.ink3, textDecorationLine: 'underline' },
   switchRow: { alignItems: 'center', marginTop: 16 },
   switchText: { fontFamily: FONTS.sans, fontSize: 13, color: COLORS.ink3 },
   switchLink: { fontFamily: fontFor('600'), color: COLORS.clay },

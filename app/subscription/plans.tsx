@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/plans/links';
 import { useRouter } from 'expo-router';
 
 import {
@@ -257,7 +258,10 @@ export default function PlansScreen() {
 
         <Text style={styles.finePrint}>
           Auto renews until you cancel. Cancel any time in your {STORE_NAME} settings.
-          By continuing you agree to our Terms of Service.
+          By continuing you agree to our{' '}
+          <Text style={styles.finePrintLink} onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}>Terms of Service</Text>
+          {' '}and{' '}
+          <Text style={styles.finePrintLink} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}>Privacy Policy</Text>.
         </Text>
       </ScrollView>
     </View>
@@ -342,4 +346,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.sans, fontSize: 11, color: COLORS.ink4,
     textAlign: 'center', lineHeight: 16,
   },
+  finePrintLink: { color: COLORS.ink3, textDecorationLine: 'underline' },
 });
