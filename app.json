@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#f8f4ef"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kinesiotherapy.app"
@@ -25,11 +27,7 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font",
-      [
-        "react-native-reanimated",
-        {}
-      ]
+      "expo-font"
     ],
     "scheme": "kinesiotherapy",
     "experiments": {
