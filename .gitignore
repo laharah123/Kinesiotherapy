@@ -13,3 +13,5 @@ web-build/
 .env
 .env.local
 expo-env.d.ts
+google-service-account.json
+*.keystore
